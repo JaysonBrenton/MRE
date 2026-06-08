@@ -1,0 +1,378 @@
+[
+  {
+    "key": "MRE_SCRAPE_ENABLED",
+    "type": "boolean",
+    "default": true,
+    "applyMode": "runtime",
+    "scope": "both",
+    "category": "scraping_safety"
+  },
+  {
+    "key": "SITE_POLICY_PATH",
+    "type": "path",
+    "default": "/app/policies/site_policy/policy.json",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "scraping_safety"
+  },
+  {
+    "key": "SITE_POLICY_CACHE_MAX",
+    "type": "integer",
+    "default": 256,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "scraping_safety"
+  },
+  {
+    "key": "INGESTION_USE_QUEUE",
+    "type": "boolean",
+    "default": true,
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "ingestion_queue"
+  },
+  {
+    "key": "INGESTION_QUEUE_MAX_CONCURRENT",
+    "type": "integer",
+    "default": 2,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "ingestion_queue"
+  },
+  {
+    "key": "INGESTION_QUEUE_JOB_TTL_SECONDS",
+    "type": "integer",
+    "default": 3600,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "ingestion_queue"
+  },
+  {
+    "key": "TRACK_SYNC_METADATA_CONCURRENCY",
+    "type": "integer",
+    "default": 6,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "track_sync"
+  },
+  {
+    "key": "TRACK_SYNC_REPORT_RETENTION_DAYS",
+    "type": "integer",
+    "default": 30,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "track_sync"
+  },
+  {
+    "key": "MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED",
+    "type": "boolean",
+    "default": false,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "recent_events_auto_ingest"
+  },
+  {
+    "key": "MRE_RECENT_EVENTS_DAYS",
+    "type": "integer",
+    "default": 7,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "recent_events_auto_ingest"
+  },
+  {
+    "key": "MRE_RECENT_EVENTS_TRACKS",
+    "type": "enum",
+    "default": "followed",
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "recent_events_auto_ingest"
+  },
+  {
+    "key": "MRE_RECENT_EVENTS_MAX_INGESTS",
+    "type": "integer",
+    "default": 50,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "recent_events_auto_ingest"
+  },
+  {
+    "key": "MRE_RECENT_EVENTS_MIN_AGE_HOURS",
+    "type": "integer",
+    "default": 12,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "recent_events_auto_ingest"
+  },
+  {
+    "key": "PRACTICE_DAY_DETAIL_CONCURRENCY",
+    "type": "integer",
+    "default": 5,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "practice_days"
+  },
+  {
+    "key": "PRACTICE_DISCOVER_CACHE_TTL_SECONDS",
+    "type": "integer",
+    "default": 600,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "practice_days"
+  },
+  {
+    "key": "PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS",
+    "type": "number",
+    "default": 15,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "practice_days"
+  },
+  {
+    "key": "PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS",
+    "type": "number",
+    "default": 25,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "practice_days"
+  },
+  {
+    "key": "TELEMETRY_UPLOAD_ROOT",
+    "type": "path",
+    "default": "/data/telemetry",
+    "applyMode": "restart",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "TELEMETRY_WORKER_ID",
+    "type": "string",
+    "default": "telemetry-worker-1",
+    "applyMode": "restart",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "TELEMETRY_WORKER_POLL_INTERVAL_SEC",
+    "type": "number",
+    "default": 2,
+    "applyMode": "runtime",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "TELEMETRY_WORKER_CLICKHOUSE_HOST",
+    "type": "string",
+    "default": "",
+    "applyMode": "restart",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "CLICKHOUSE_HTTP_PORT",
+    "type": "integer",
+    "default": 8123,
+    "applyMode": "restart",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "CLICKHOUSE_USER",
+    "type": "string",
+    "default": "default",
+    "applyMode": "restart",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "CLICKHOUSE_PASSWORD",
+    "type": "string",
+    "default": "",
+    "applyMode": "readonly",
+    "scope": "telemetry",
+    "category": "telemetry"
+  },
+  {
+    "key": "DATABASE_URL",
+    "type": "string",
+    "default": "",
+    "applyMode": "readonly",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "DB_POOL_SIZE",
+    "type": "integer",
+    "default": 10,
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "DB_MAX_OVERFLOW",
+    "type": "integer",
+    "default": 20,
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "LOG_LEVEL",
+    "type": "enum",
+    "default": "INFO",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "HOST",
+    "type": "string",
+    "default": "0.0.0.0",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "PORT",
+    "type": "integer",
+    "default": 8000,
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "PYTHONUNBUFFERED",
+    "type": "string",
+    "default": "1",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "TZ",
+    "type": "string",
+    "default": "Australia/Sydney",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "UVICORN_RELOAD",
+    "type": "boolean",
+    "default": false,
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "UVICORN_WORKERS",
+    "type": "integer",
+    "default": 1,
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "INGESTION_BUILD_TARGET",
+    "type": "enum",
+    "default": "development",
+    "applyMode": "readonly",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "CORS_ALLOWED_ORIGINS",
+    "type": "string",
+    "default": "http://localhost:3001",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "INGESTION_SERVICE_URL",
+    "type": "string",
+    "default": "http://liverc-ingestion-service:8000",
+    "applyMode": "readonly",
+    "scope": "app",
+    "category": "infrastructure"
+  },
+  {
+    "key": "INGESTION_PORT",
+    "type": "integer",
+    "default": 8000,
+    "applyMode": "readonly",
+    "scope": "app",
+    "category": "infrastructure"
+  },
+  {
+    "key": "INGESTION_ADMIN_TOKEN",
+    "type": "string",
+    "default": "",
+    "applyMode": "restart",
+    "scope": "ingestion",
+    "category": "infrastructure"
+  },
+  {
+    "key": "INGESTION_SETTINGS_CACHE_TTL_SECONDS",
+    "type": "integer",
+    "default": 30,
+    "applyMode": "runtime",
+    "scope": "both",
+    "category": "infrastructure"
+  },
+  {
+    "key": "site_policy_overrides",
+    "type": "json",
+    "default": "{}",
+    "applyMode": "runtime",
+    "scope": "both",
+    "category": "site_policy"
+  },
+  {
+    "key": "RACE_FETCH_CONCURRENCY",
+    "type": "integer",
+    "default": 8,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "code_constants"
+  },
+  {
+    "key": "INACTIVITY_TIMEOUT_SECONDS",
+    "type": "integer",
+    "default": 300,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "code_constants"
+  },
+  {
+    "key": "MAX_TOTAL_DURATION_SECONDS",
+    "type": "integer",
+    "default": 3600,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "code_constants"
+  },
+  {
+    "key": "HTTPX_CONNECT_TIMEOUT_SECONDS",
+    "type": "number",
+    "default": 5,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "code_constants"
+  },
+  {
+    "key": "HTTPX_READ_TIMEOUT_SECONDS",
+    "type": "number",
+    "default": 20,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "code_constants"
+  },
+  {
+    "key": "HTTPX_MAX_RETRIES",
+    "type": "integer",
+    "default": 3,
+    "applyMode": "runtime",
+    "scope": "ingestion",
+    "category": "code_constants"
+  }
+]

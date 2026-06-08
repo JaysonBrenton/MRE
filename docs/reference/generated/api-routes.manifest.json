@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-05-31T11:36:34.151Z",
+  "generatedAt": "2026-06-08T10:09:45.916Z",
   "source": "src/app/api",
-  "count": 88,
+  "count": 92,
   "routes": [
     {
       "file": "src/app/api/auth/[...nextauth]/route.ts",
@@ -37,6 +37,16 @@
       "file": "src/app/api/v1/admin/ingestion/route.ts",
       "urlPath": "/api/v1/admin/ingestion",
       "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/admin/ingestion/settings/reload/route.ts",
+      "urlPath": "/api/v1/admin/ingestion/settings/reload",
+      "methods": ["POST"]
+    },
+    {
+      "file": "src/app/api/v1/admin/ingestion/settings/route.ts",
+      "urlPath": "/api/v1/admin/ingestion/settings",
+      "methods": ["GET", "PATCH"]
     },
     {
       "file": "src/app/api/v1/admin/logs/route.ts",
@@ -169,6 +179,11 @@
       "methods": ["GET"]
     },
     {
+      "file": "src/app/api/v1/events/browse/route.ts",
+      "urlPath": "/api/v1/events/browse",
+      "methods": ["GET"]
+    },
+    {
       "file": "src/app/api/v1/events/check-entry-lists/route.ts",
       "urlPath": "/api/v1/events/check-entry-lists",
       "methods": ["POST"]
@@ -191,6 +206,11 @@
     {
       "file": "src/app/api/v1/events/search/route.ts",
       "urlPath": "/api/v1/events/search",
+      "methods": ["GET"]
+    },
+    {
+      "file": "src/app/api/v1/events/search/suggest/route.ts",
+      "urlPath": "/api/v1/events/search/suggest",
       "methods": ["GET"]
     },
     {

@@ -323,7 +323,9 @@ def refresh_tracks(metadata: bool) -> None:
         include_metadata=metadata,
     )
 
-    metadata_concurrency = int(os.getenv("TRACK_SYNC_METADATA_CONCURRENCY", "6"))
+    from ingestion.common.settings import get_int
+
+    metadata_concurrency = get_int("TRACK_SYNC_METADATA_CONCURRENCY")
 
     def _progress(stage: str, processed: int, total: int) -> None:
         if total <= 0:

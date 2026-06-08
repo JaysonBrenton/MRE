@@ -33,7 +33,7 @@ type an event name and jump to it.
 Separately, the inline **Search LiveRC** toggle blurs the line between
 _searching_ (recall something already ingested) and _importing_ (fetch new data
 from LiveRC). Importing already has a dedicated home — **Actions → Find and
-Import Events** on My Event Analysis (see
+Import Events** and the dashboard **Event Search** modal (see
 [event-search user guide](../user-guides/event-search.md)).
 
 ## Decision

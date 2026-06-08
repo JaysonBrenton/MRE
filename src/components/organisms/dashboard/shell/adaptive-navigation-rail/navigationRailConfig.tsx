@@ -227,7 +227,7 @@ export const GUIDE_ITEMS: GuideItem[] = [
     ),
   },
   {
-    href: "/guides/event-search",
+    href: "/guides/global-search",
     label: "Global Search",
     icon: (active) => (
       <svg

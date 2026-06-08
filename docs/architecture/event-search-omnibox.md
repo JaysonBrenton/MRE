@@ -1,7 +1,7 @@
 ---
 created: 2026-06-01
 creator: Frontend Delivery Agent
-lastModified: 2026-06-01
+lastModified: 2026-06-07
 description:
   Architecture and contracts for the database-only Event Search omnibox and the
   collapsed Filters control in the dashboard Event Search modal.
@@ -16,11 +16,16 @@ relatedFiles:
   - src/components/organisms/event-search/EventSearchFilters.tsx
   - src/components/organisms/event-search/EventSearchForm.tsx
   - src/components/organisms/event-search/EventSearchContainer.tsx
+  - src/components/organisms/event-search/event-search-filter-draft.ts
+  - src/components/organisms/event-search/event-search-status-filter.ts
+  - src/components/organisms/event-search/event-search-filters-popover-layout.ts
 relatedDocs:
   - docs/adr/ADR-20260601-event-search-omnibox-db-only.md
   - docs/architecture/search-feature.md
+  - docs/architecture/event-search-include-practice-days-design.md
   - docs/frontend/liverc/user-workflow.md
   - docs/user-guides/event-search.md
+  - docs/user-guides/global-search.md
 ---
 
 # Event Search omnibox (database-only)
@@ -51,9 +56,9 @@ record is [ADR-20260601](../adr/ADR-20260601-event-search-omnibox-db-only.md).
    selection triggers a search. LiveRC import still lives in **Actions → Find
    and Import Events**.
 4. **Progressive disclosure.** Track Selection, Date Filter, Search LiveRC,
-   Search Everlaps, and Include practice days collapse into a **Filters**
-   popover, surfaced as a small icon + "Filters" label with an active-filter
-   badge.
+   Search Everlaps, Include practice days, and **Status** toggles (Include Ready
+   / Include Scheduled) collapse into a **Filters** popover, surfaced as a small
+   icon + "Filters" label with an active-filter badge.
 5. **Reuse the pipeline.** The Search button runs the existing
    `GET /api/v1/events/search` track-scoped query (or browse when applicable).
    No parallel search engine is introduced for the results list.
@@ -158,12 +163,12 @@ GET /api/v1/events/browse?start_date=&end_date=&page=&page_size=&database_only=t
 
 ## 3. Components
 
-| Component              | Responsibility                                                                                                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `EventSearchOmnibox`   | Debounced (~250 ms) type-ahead input. Fetches `/suggest`, renders grouped `combobox`/`listbox` results, full keyboard support. Emits `onSelectTrack` / `onSelectEvent`. Owns no business state.              |
-| `EventSearchFilters`   | "Filters" button + popover. Hosts Track Selection, Date Filter, **Search LiveRC**, **Search Everlaps**, and Include practice days. Shows an active-filter badge.                                             |
-| `EventSearchForm`      | Lays out omnibox + Filters + Search/Stop. Wires omnibox selections to `onTrackSelect`/`onSearch` and `onSelectEvent`; forwards all filter/source toggles to `EventSearchFilters`.                            |
-| `EventSearchContainer` | Unchanged orchestration brain (DB + optional LiveRC discovery, pagination, import status, localStorage). All source/filter toggles (`includeLiveRC`, `includeEverlaps`, `includePracticeDays`) are retained. |
+| Component              | Responsibility                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EventSearchOmnibox`   | Debounced (~250 ms) type-ahead input. Fetches `/suggest`, renders grouped `combobox`/`listbox` results, full keyboard support. Emits `onSelectTrack` / `onSelectEvent`. Owns no business state.                                                                                                                                                            |
+| `EventSearchFilters`   | "Filters" button + portaled popover (`event-search-filters-popover-layout.ts`). Hosts Track Selection, Date Filter, **Search LiveRC**, **Search Everlaps**, Include practice days, and **Status** (Include Ready / Include Scheduled). Staged draft via `event-search-filter-draft.ts`; **Apply** commits without searching. Shows an active-filter badge. |
+| `EventSearchForm`      | Lays out omnibox + Filters + Search/Stop. Wires omnibox selections to `onTrackSelect`/`onSearch` and `onSelectEvent`; forwards all filter/source/status toggles to `EventSearchFilters`.                                                                                                                                                                   |
+| `EventSearchContainer` | Orchestration: DB + optional LiveRC discovery, practice discover, pagination, import polling, status filtering (`event-search-status-filter.ts`), localStorage. Retains `includeLiveRC`, `includeEverlaps`, `includePracticeDays`, `includeReady`, `includeScheduled`.                                                                                     |
 
 ### 3.1 Omnibox behaviour
 
@@ -188,11 +193,65 @@ GET /api/v1/events/browse?start_date=&end_date=&page=&page_size=&database_only=t
 - Trigger: icon (e.g. `SlidersHorizontal`) + **"Filters"** label,
   `aria-haspopup="dialog"`, `aria-expanded`.
 - **Badge** counts non-default filters (non-default date range, Search LiveRC
-  on, Search Everlaps on, practice days on).
-- Closes on outside click and `Escape`.
-- Contents (events mode): **Track Selection**, **Date Filter**, **Search
-  LiveRC**, **Search Everlaps**, and **Include practice days** (the last only
-  when the practice-days feature flag is on).
+  on, Search Everlaps on, practice days on, Include Ready off, Include Scheduled
+  off).
+- **Portal:** popover renders via `createPortal` to `document.body` with fixed
+  positioning from `computeEventSearchFiltersPopoverRect` so it is not clipped
+  by the modal's `overflow-hidden` panels. Prefers opening below the trigger;
+  flips above when viewport space is tight.
+- Closes on outside click and `Escape` (suppressed while nested Track or Date
+  modals are open).
+- Contents (events mode): **Track Selection**, **Date Filter**, **Sources**
+  (Search LiveRC, Search Everlaps), **Include practice days** (when feature flag
+  on), and **Status** (Include Ready, Include Scheduled).
+- **Clear filters** resets draft and committed state to
+  `DEFAULT_EVENT_SEARCH_FILTER_DRAFT` and clears persisted track/date keys.
+
+### 3.3 Status filters (client-side)
+
+Implemented in `event-search-status-filter.ts`. Applied to the results list
+after API merge (does not change backend queries).
+
+| Toggle             | Default | Effect when off                                                            |
+| ------------------ | ------- | -------------------------------------------------------------------------- |
+| `includeReady`     | `true`  | Hide rows classified Ready (`ingest_depth = laps_full`, not future-dated). |
+| `includeScheduled` | `true`  | Hide future-dated rows (Scheduled badge).                                  |
+
+`eventMatchesStatusFilters`: Scheduled (future date) takes precedence over
+Ready, matching `EventRow` badge logic. New, Importing, and Failed rows are
+always shown. When both toggles are on, the filter is a no-op.
+
+Draft fields live on `EventSearchFilterDraft` alongside track, date, and source
+toggles; committed on Filters **Apply**.
+
+### 3.4 Search / Stop
+
+- **Search** runs the full pipeline (browse, track search, LiveRC discover,
+  practice discover as applicable). Disabled when LiveRC or practice toggles
+  require a track and none is selected, or while a search is in flight.
+- **Stop** aborts in-flight fetches (`handleStopSearch` in container). Button
+  enabled only while `isSearchingInFlight`.
+
+### 3.5 Results (events mode)
+
+- **EventRow** columns: name (optional LiveRC link), track (cross-track browse),
+  status badge, date, actions (**Download**, **Retry import**, **Open**).
+- **Include practice days:** combined list with `PracticeDayRow`; optional
+  post-search chips filter All / Events / Practice days.
+- **Pagination:** client-side for track-scoped lists; server-side for
+  cross-track browse. Persisted under `mre_event_search_pagination`.
+
+### 3.6 Persistence (`localStorage`)
+
+| Key                           | Purpose                 |
+| ----------------------------- | ----------------------- |
+| `mre_favourite_tracks`        | Track picker favourites |
+| `mre_last_track`              | Last committed track    |
+| `mre_date_range_preset`       | Date preset enum        |
+| `mre_last_date_range`         | Custom start/end        |
+| `mre_use_date_filter`         | Legacy flag             |
+| `mre_event_search_pagination` | Page + page size        |
+| `mre_known_imported_events`   | Import UX hints         |
 
 ---
 
@@ -213,5 +272,11 @@ GET /api/v1/events/browse?start_date=&end_date=&page=&page_size=&database_only=t
 - **API route:** auth required; param parsing/clamping; standardized response.
 - **Omnibox component:** debounce, min-length gating, grouped rendering,
   keyboard selection, callback emission.
+- **Status filters:** `eventMatchesStatusFilters` / `applyEventStatusFilters`
+  unit tests; Ready/Scheduled precedence.
+- **Filter draft:** `buildCommittedFilterDraft`, `isFilterDraftEqual`,
+  `applyDatePresetToDraft`.
+- **Popover layout:** `computeEventSearchFiltersPopoverRect` viewport
+  flip/clamp.
 - All runtime verification is **Docker-only**
   (`docker exec -it mre-app npm test`).

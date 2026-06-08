@@ -26,19 +26,22 @@ relatedFiles:
 for Event Search and Event Analysis.
 
 > **⚠️ Shipped reality (Alpha v0.1.0).** Several stories below describe a
-> track-first search flow (searchable track modal, favourite-track chips,
-> multi-select import checkboxes, per-row "Analyse event" buttons) and an Event
-> Analysis page with Overview / Drivers / Sessions / Comparisons tabs plus CSV
-> export. The **shipped** app instead provides **Global Search** at
-> **`/search`** (free-text + Driver Name + Session Type + date filters;
-> `/event-search` redirects here), triggers imports via **Actions → Find and
-> Import Events** on **`/eventAnalysis`**, and renders analysis embedded in
-> `/eventAnalysis` (Overview / Event Analysis / Session Analysis / Entry List
-> tabs; no headline CSV export). Treat unshipped specifics here as **planned**.
-> Source of truth:
-> [`docs/user-guides/event-search.md`](../../user-guides/event-search.md) and
-> [`docs/user-guides/event-analysis.md`](../../user-guides/event-analysis.md).
-> The shipped mains-ladder scaffold is documented in the final user story below.
+> standalone Event Search **page** and an Event Analysis page with Overview /
+> Drivers / Sessions / Comparisons tabs plus CSV export. The **shipped** app
+> instead provides:
+>
+> - **Dashboard Event Search modal** (⌘E / Find Events): omnibox, Filters
+>   popover, track modal, favourites, LiveRC discovery, Download/Open per row,
+>   Include Ready / Include Scheduled status filters. See
+>   [`docs/user-guides/event-search.md`](../../user-guides/event-search.md).
+> - **Global Search** at **`/search`** (keyword + session filters;
+>   `/event-search` redirects here). See
+>   [`docs/user-guides/global-search.md`](../../user-guides/global-search.md).
+> - Analysis embedded in **`/eventAnalysis`** (Overview / Event Analysis /
+>   Session Analysis / Entry List tabs; no headline CSV export). See
+>   [`docs/user-guides/event-analysis.md`](../../user-guides/event-analysis.md).
+>   The shipped mains-ladder scaffold is documented in the final user story
+>   below.
 
 ## Purpose
 

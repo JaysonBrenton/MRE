@@ -92,6 +92,10 @@ ingestion system:
 - [31 - Recent Events Auto-Ingest](architecture/liverc-ingestion/31-recent-events-auto-ingest.md) -
   Planned nightly discovery and full ingest for recent LiveRC events (followed
   tracks, date window, caps)
+- [33 - Ingestion Settings Registry](architecture/liverc-ingestion/33-ingestion-settings-registry-and-runtime-config.md)
+  — **Implemented** canonical registry (47 keys) for admin console
+- [Admin Ingestion Settings Console](architecture/admin-ingestion-settings-console.md)
+  — **Implemented** admin UI at `/admin/ingestion/settings`
 - [29 - Pitstop Detection System (Nitro-Only)](architecture/liverc-ingestion/29-pitstop-detection-system.md) -
   Race-length-aware nitro pit detection design, pit-time estimates, and strategy
   inference
@@ -788,6 +792,20 @@ operational procedures.
 for technical details. See
 [Recent Events Auto-Ingest Runbook](operations/recent-events-auto-ingest-runbook.md)
 for the planned nightly auto-ingest job (doc 31).
+
+### [Admin Ingestion Settings Runbook](operations/admin-ingestion-settings-runbook.md)
+
+**Status:** Implemented  
+**Last Updated:** 2026-06-08
+
+Operations runbook for the admin ingestion settings console: runtime vs
+restart-required settings, scrape kill switch, auto-ingest tuning,
+troubleshooting config drift, and audit review.
+
+**Related:** [Admin user guide](user-guides/admin-ingestion-settings.md),
+[Architecture](architecture/admin-ingestion-settings-console.md),
+[Implementation plan](implimentation_plans/admin-ingestion-settings-console-2026-06.md),
+[ADR-20260608](adr/ADR-20260608-admin-ingestion-settings-console.md).
 
 ### [Recent Events Auto-Ingest Runbook](operations/recent-events-auto-ingest-runbook.md)
 

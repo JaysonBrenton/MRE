@@ -251,14 +251,14 @@ export interface OverviewTabProps {
   selectedClass: string | null
   onClassChange: (className: string | null) => void
   /** Top-level dashboard tab: only that section’s content (no inner overview subsection strip). */
-  variant?: "default" | "event-overview-minimal" | "event-analysis-only" | "session-analysis-only"
-  /** Controlled sub-view when parent owns toolbar dropdown (`event-analysis-only` / `session-analysis-only`). */
+  variant?: "default" | "event-overview-minimal" | "event-analysis-only"
+  /** Controlled sub-view when parent owns toolbar dropdown (`event-analysis-only`). */
   analysisSubTab?: EventAnalysisSubTabId
   onAnalysisSubTabChange?: (id: EventAnalysisSubTabId) => void
   /** Renders above the “Event details” heading (e.g. dashboard tab strip for Event Overview tabs). */
   toolbarAboveEventDetails?: ReactNode
   /**
-   * When true with `event-analysis-only` / `session-analysis-only`, root tabpanel is owned by the
+   * When true with `event-analysis-only`, root tabpanel is owned by the
    * Analysis primary tab (`tabpanel-analysis` / `tab-analysis`) instead of Event/Session tab ids.
    */
   analysisDispatchFromPrimaryTab?: boolean
@@ -309,8 +309,6 @@ export default function OverviewTab({
           return "event-overview"
         case "event-analysis-only":
           return "event-analysis"
-        case "session-analysis-only":
-          return "session-analysis"
         default:
           return "event-overview"
       }
@@ -346,15 +344,12 @@ export default function OverviewTab({
     setAllPanelsExpanded,
     getPanelDisplayOrder,
     eventLevelPanelOrder,
-    sessionLevelPanelOrder,
     reorderEventLevelPanels,
-    reorderSessionLevelPanels,
     resetPanelOrder,
     prevEventLevelLapSeedKeyRef,
   } = useEventAnalysisUiState()
 
-  const inSessionAnalysisSection =
-    variant === "session-analysis-only" || overviewPrimarySection === "session-analysis"
+  const inSessionAnalysisSection = overviewPrimarySection === "session-analysis"
   const [venueHostTab, setVenueHostTab] = useState<VenueHostSubTab>("eventHost")
   const isControlledAnalysisSubTab =
     analysisSubTabProp !== undefined && onAnalysisSubTabChange !== undefined
@@ -2621,9 +2616,7 @@ export default function OverviewTab({
   )
 
   const showOtherSections =
-    variant !== "event-overview-minimal" &&
-    variant !== "event-analysis-only" &&
-    variant !== "session-analysis-only"
+    variant !== "event-overview-minimal" && variant !== "event-analysis-only"
   const isEventOverviewMinimal = variant === "event-overview-minimal"
   /** Event overview hero/stats: only on the Event Overview top tab, or in default mode when that subsection is active. */
   const showEventOverviewSection =
@@ -2652,19 +2645,14 @@ export default function OverviewTab({
     (showOtherSections && overviewPrimarySection === "event-analysis")
 
   const showSessionAnalysisSectionBlock =
-    variant === "session-analysis-only" ||
-    (showOtherSections && overviewPrimarySection === "session-analysis")
+    showOtherSections && overviewPrimarySection === "session-analysis"
 
   const ladderInEventAnalysis =
     isEventAnalysisToolbarVariant &&
     (eventAnalysisTab === "bump-ups" || eventAnalysisTab === "driver-progression")
 
   const overviewPrimarySectionTabsVisible = useMemo(() => {
-    if (
-      variant === "event-overview-minimal" ||
-      variant === "event-analysis-only" ||
-      variant === "session-analysis-only"
-    ) {
+    if (variant === "event-overview-minimal" || variant === "event-analysis-only") {
       return []
     }
     return overviewPrimarySectionTabs
@@ -2674,8 +2662,7 @@ export default function OverviewTab({
     variant === "event-overview-minimal" ? "tab-event-overview" : null
 
   const analysisPrimaryOwnsTabpanel =
-    analysisDispatchFromPrimaryTab &&
-    (variant === "event-analysis-only" || variant === "session-analysis-only")
+    analysisDispatchFromPrimaryTab && variant === "event-analysis-only"
 
   const tabPanelId = analysisPrimaryOwnsTabpanel
     ? "tabpanel-analysis"
@@ -2683,18 +2670,14 @@ export default function OverviewTab({
       ? "tabpanel-event-overview"
       : variant === "event-analysis-only"
         ? "tabpanel-event-analysis"
-        : variant === "session-analysis-only"
-          ? "tabpanel-session-analysis"
-          : "tabpanel-overview"
+        : "tabpanel-overview"
   const tabAriaLabelledBy = analysisPrimaryOwnsTabpanel
     ? "tab-analysis"
     : variant === "event-overview-minimal"
       ? "tab-event-overview"
       : variant === "event-analysis-only"
         ? "tab-event-analysis"
-        : variant === "session-analysis-only"
-          ? "tab-session-analysis"
-          : "tab-overview"
+        : "tab-overview"
 
   const eventAnalysisSectionToolbarTabId =
     analysisPrimaryOwnsTabpanel && variant === "event-analysis-only"
@@ -2703,12 +2686,7 @@ export default function OverviewTab({
         ? "tab-event-analysis"
         : "event-analysis-heading"
 
-  const sessionAnalysisSectionToolbarTabId =
-    analysisPrimaryOwnsTabpanel && variant === "session-analysis-only"
-      ? "tab-analysis"
-      : variant === "session-analysis-only"
-        ? "tab-session-analysis"
-        : "session-analysis-heading"
+  const sessionAnalysisSectionToolbarTabId = "session-analysis-heading"
 
   return (
     <div
@@ -3138,10 +3116,6 @@ export default function OverviewTab({
               </tr>
               <tr>
                 <th scope="row">Panel 6</th>
-                <td>Weather and track placeholder region</td>
-              </tr>
-              <tr>
-                <th scope="row">Panel 7</th>
                 <td>Incidents and penalties placeholder region</td>
               </tr>
             </tbody>
@@ -3159,14 +3133,14 @@ export default function OverviewTab({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setAllPanelsExpanded(true, "event")}
+                  onClick={() => setAllPanelsExpanded(true)}
                   className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   Expand all
                 </button>
                 <button
                   type="button"
-                  onClick={() => setAllPanelsExpanded(false, "event")}
+                  onClick={() => setAllPanelsExpanded(false)}
                   className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
                 >
                   Collapse all
@@ -3689,31 +3663,6 @@ export default function OverviewTab({
                 )}
               </SortableAnalysisPanel>
               <SortableAnalysisPanel
-                id="event-level-analysis-col-7"
-                order={getPanelDisplayOrder("event-level-analysis-col-7")}
-                disabled={isPanelExpanded("event-level-analysis-col-7")}
-                expanded={isPanelExpanded("event-level-analysis-col-7")}
-              >
-                {(dragHandle) => (
-                  <OverviewCollapsibleGlassCard
-                    dragHandle={dragHandle}
-                    panelId="event-level-analysis-col-7"
-                    headingId="event-level-analysis-col-7-heading"
-                    title="Weather and track"
-                    animatedHeight
-                    expanded={isPanelExpanded("event-level-analysis-col-7")}
-                    onExpandedChange={(open) =>
-                      setPanelExpanded("event-level-analysis-col-7", open)
-                    }
-                  >
-                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                      Placeholder container for ambient conditions, track evolution, and rubber-in
-                      context. Content will be added here.
-                    </p>
-                  </OverviewCollapsibleGlassCard>
-                )}
-              </SortableAnalysisPanel>
-              <SortableAnalysisPanel
                 id="event-level-analysis-col-8"
                 order={getPanelDisplayOrder("event-level-analysis-col-8")}
                 disabled={isPanelExpanded("event-level-analysis-col-8")}
@@ -3734,114 +3683,6 @@ export default function OverviewTab({
                     <p className={`${typography.bodySecondary} max-w-prose text-center`}>
                       Placeholder container for on-track incidents, race-control actions, and
                       penalty summaries. Content will be added here.
-                    </p>
-                  </OverviewCollapsibleGlassCard>
-                )}
-              </SortableAnalysisPanel>
-            </AnalysisPanelSortableGrid>
-          </div>
-        </section>
-      )}
-
-      {variant === "session-analysis-only" && (
-        <section className="space-y-4" aria-labelledby={sessionAnalysisSectionToolbarTabId}>
-          <table className="sr-only">
-            <caption>Session level analysis panels</caption>
-            <tbody>
-              <tr>
-                <th scope="row">Panel 1</th>
-                <td>Session metrics placeholder region</td>
-              </tr>
-              <tr>
-                <th scope="row">Panel 2</th>
-                <td>Session scope placeholder region</td>
-              </tr>
-            </tbody>
-          </table>
-          <div
-            id={sessionAnalysisSectionContentId}
-            role="tabpanel"
-            aria-labelledby={sessionAnalysisSectionToolbarTabId}
-            className="space-y-5"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id="session-analysis-subview-heading" className={typography.h4}>
-                Session Level Analysis
-              </h2>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setAllPanelsExpanded(true, "session")}
-                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
-                >
-                  Expand all
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAllPanelsExpanded(false, "session")}
-                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
-                >
-                  Collapse all
-                </button>
-                <button
-                  type="button"
-                  onClick={resetPanelOrder}
-                  className="rounded-lg border border-[var(--token-border-default)] bg-[var(--token-surface-elevated)] px-2.5 py-1 text-xs font-medium text-[var(--token-text-secondary)] transition hover:bg-[var(--token-surface-raised)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--token-interactive-focus-ring)]"
-                >
-                  Reset layout
-                </button>
-              </div>
-            </div>
-            <AnalysisPanelSortableGrid
-              panelIds={sessionLevelPanelOrder}
-              onReorder={reorderSessionLevelPanels}
-            >
-              <SortableAnalysisPanel
-                id="session-level-analysis-col-1"
-                order={getPanelDisplayOrder("session-level-analysis-col-1")}
-                disabled={isPanelExpanded("session-level-analysis-col-1")}
-                expanded={isPanelExpanded("session-level-analysis-col-1")}
-              >
-                {(dragHandle) => (
-                  <OverviewCollapsibleGlassCard
-                    dragHandle={dragHandle}
-                    panelId="session-level-analysis-col-1"
-                    headingId="session-level-analysis-col-1-heading"
-                    title="Session metrics"
-                    animatedHeight
-                    expanded={isPanelExpanded("session-level-analysis-col-1")}
-                    onExpandedChange={(open) =>
-                      setPanelExpanded("session-level-analysis-col-1", open)
-                    }
-                  >
-                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                      Placeholder container for session-level timing, pace, and consistency. Content
-                      will be added here.
-                    </p>
-                  </OverviewCollapsibleGlassCard>
-                )}
-              </SortableAnalysisPanel>
-              <SortableAnalysisPanel
-                id="session-level-analysis-col-2"
-                order={getPanelDisplayOrder("session-level-analysis-col-2")}
-                disabled={isPanelExpanded("session-level-analysis-col-2")}
-                expanded={isPanelExpanded("session-level-analysis-col-2")}
-              >
-                {(dragHandle) => (
-                  <OverviewCollapsibleGlassCard
-                    dragHandle={dragHandle}
-                    panelId="session-level-analysis-col-2"
-                    headingId="session-level-analysis-col-2-heading"
-                    title="Session scope"
-                    animatedHeight
-                    expanded={isPanelExpanded("session-level-analysis-col-2")}
-                    onExpandedChange={(open) =>
-                      setPanelExpanded("session-level-analysis-col-2", open)
-                    }
-                  >
-                    <p className={`${typography.bodySecondary} max-w-prose text-center`}>
-                      Placeholder container for class/program context and results for the selected
-                      session. Content will be added here.
                     </p>
                   </OverviewCollapsibleGlassCard>
                 )}
@@ -4288,7 +4129,7 @@ export default function OverviewTab({
             )}
         </section>
       )}
-      {showSessionAnalysisSectionBlock && variant !== "session-analysis-only" && (
+      {showSessionAnalysisSectionBlock && (
         <section className="space-y-3" aria-labelledby={sessionAnalysisSectionToolbarTabId}>
           <div
             id={sessionAnalysisSectionContentId}

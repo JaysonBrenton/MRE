@@ -76,6 +76,10 @@ export interface EventSearchFormProps {
   includeLiveRC?: boolean
   /** When true, the full search will include Everlaps (pipeline not yet implemented) */
   includeEverlaps?: boolean
+  /** When false, hide Ready (laps_full) events in results. Default true. */
+  includeReady?: boolean
+  /** When false, hide Scheduled (future) events in results. Default true. */
+  includeScheduled?: boolean
   /** Commits staged source toggles from the Filters popover. */
   onApplyFilters: (draft: EventSearchFilterDraft) => void
   /** Resets committed filters to defaults (toggles + date range). */
@@ -96,8 +100,8 @@ export default function EventSearchForm({
   errors,
   isLoading,
   onTrackSelect,
-  onStartDateChange,
-  onEndDateChange,
+  onStartDateChange: _onStartDateChange,
+  onEndDateChange: _onEndDateChange,
   dateRangePreset = "last12",
   onDateRangePresetChange,
   onToggleFavourite,
@@ -114,6 +118,8 @@ export default function EventSearchForm({
   includePracticeDays = false,
   includeLiveRC = false,
   includeEverlaps = false,
+  includeReady = true,
+  includeScheduled = true,
   onApplyFilters,
   onClearFilters,
   canSearchWithoutTrack = false,
@@ -140,6 +146,8 @@ export default function EventSearchForm({
         includeLiveRC,
         includeEverlaps,
         includePracticeDays,
+        includeReady,
+        includeScheduled,
       }),
     [
       selectedTrack,
@@ -149,6 +157,8 @@ export default function EventSearchForm({
       includeLiveRC,
       includeEverlaps,
       includePracticeDays,
+      includeReady,
+      includeScheduled,
     ]
   )
 
@@ -226,7 +236,9 @@ export default function EventSearchForm({
     (searchMode === "events" && dateRangePreset !== "none" ? 1 : 0) +
     (searchMode === "events" && includePracticeDays ? 1 : 0) +
     (searchMode === "events" && includeLiveRC ? 1 : 0) +
-    (searchMode === "events" && includeEverlaps ? 1 : 0)
+    (searchMode === "events" && includeEverlaps ? 1 : 0) +
+    (searchMode === "events" && !includeReady ? 1 : 0) +
+    (searchMode === "events" && !includeScheduled ? 1 : 0)
 
   return (
     <>
@@ -275,6 +287,7 @@ export default function EventSearchForm({
                 showPracticeToggle={searchMode === "events" && practiceDaysEnabled}
                 showLiveRCToggle={searchMode === "events"}
                 showEverlapsToggle={searchMode === "events"}
+                showStatusToggles={searchMode === "events"}
                 onApplyFilters={onApplyFilters}
                 onClearFilters={onClearFilters}
                 activeFilterCount={activeFilterCount}

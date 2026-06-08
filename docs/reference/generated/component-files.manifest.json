@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-05-31T11:36:34.172Z",
+  "generatedAt": "2026-06-08T10:09:45.941Z",
   "source": "src/components",
   "exclusions": "Excludes: *.test.ts, *.test.tsx, __tests__/**, organisms/**/overview-testing/**",
-  "count": 203,
+  "count": 215,
   "components": [
     {
       "file": "src/components/AdminNav.tsx",
@@ -196,6 +196,16 @@
     },
     {
       "file": "src/components/organisms/admin/IngestionControls.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/IngestionSettingsConsole.tsx",
+      "tier": "organism:admin",
+      "featureArea": "admin"
+    },
+    {
+      "file": "src/components/organisms/admin/IngestionSubNav.tsx",
       "tier": "organism:admin",
       "featureArea": "admin"
     },
@@ -890,6 +900,11 @@
       "featureArea": "event-search"
     },
     {
+      "file": "src/components/organisms/event-search/EventImportFailedModal.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
       "file": "src/components/organisms/event-search/EventRow.tsx",
       "tier": "organism:event-search",
       "featureArea": "event-search"
@@ -900,7 +915,32 @@
       "featureArea": "event-search"
     },
     {
+      "file": "src/components/organisms/event-search/EventSearchFilters.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
       "file": "src/components/organisms/event-search/EventSearchForm.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchOmnibox.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchPaginationFooter.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchResultsTable.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/EventSearchTableColgroup.tsx",
       "tier": "organism:event-search",
       "featureArea": "event-search"
     },
@@ -931,6 +971,26 @@
     },
     {
       "file": "src/components/organisms/event-search/TrackSelectionModal.tsx",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/event-search-filter-draft.ts",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/event-search-filters-popover-layout.ts",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/event-search-status-filter.ts",
+      "tier": "organism:event-search",
+      "featureArea": "event-search"
+    },
+    {
+      "file": "src/components/organisms/event-search/event-search-table-layout.ts",
       "tier": "organism:event-search",
       "featureArea": "event-search"
     },

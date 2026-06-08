@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from ingestion.api.routes import router
+from ingestion.api.admin_settings import router as admin_settings_router
 from ingestion.common.logging import get_logger
 from ingestion.ingestion.errors import IngestionError
 
@@ -39,6 +40,7 @@ app.add_middleware(
 
 # Register routes
 app.include_router(router, prefix="/api/v1")
+app.include_router(admin_settings_router, prefix="/api/v1")
 
 
 @app.get("/health")

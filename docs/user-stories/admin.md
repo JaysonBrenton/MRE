@@ -407,6 +407,47 @@ Medium
 
 ---
 
+## Ingestion Settings Console
+
+**As an** Administrator  
+**I want** to view and configure ingestion service settings from the admin
+console  
+**So that** I can tune scraping, queues, and scheduled jobs without editing
+Docker env files
+
+### Priority
+
+Medium
+
+### Acceptance Criteria
+
+- Navigate to `/admin/ingestion/settings` from admin navigation
+- View all registered ingestion settings grouped by category (scraping, queue,
+  track sync, recent events auto-ingest, practice days, telemetry, site policy,
+  code constants, infrastructure read-only)
+- Each setting shows effective value, source (database / environment / default),
+  and apply mode (runtime / restart required / read-only)
+- Edit runtime-tunable settings with validation (min/max, enums, booleans)
+- Confirm dialog before dangerous changes (disable scraping, unlimited ingests)
+- Save persists to database overrides; changes audited as
+  `ingestion.settings.update`
+- Restart-required settings displayed read-only with link to ops runbook
+- Secrets (`DATABASE_URL`, passwords) masked in UI
+
+- Edit site policy overrides as validated JSON merged onto base policy file
+- Tune pipeline/HTTP constants (race fetch concurrency, timeouts) at runtime
+
+### Documentation
+
+- [Admin user guide: Ingestion settings](../user-guides/admin-ingestion-settings.md)
+- [Architecture](../architecture/admin-ingestion-settings-console.md)
+- [Operations runbook](../operations/admin-ingestion-settings-runbook.md)
+
+**Status:** Implemented — see
+[implementation checklist](../implimentation_plans/admin-ingestion-settings-console-checklist.md)
+
+---
+
 ## Audit Logs
 
 **As an** Administrator  

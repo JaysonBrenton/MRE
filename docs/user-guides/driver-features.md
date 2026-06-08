@@ -99,6 +99,7 @@ Profiles** (`/eventAnalysis/driver-profiles`).
 - [Getting Started](getting-started.md)
 - [My Event Analysis](dashboard.md)
 - [Event Analysis](event-analysis.md)
-- [Global Search fallback](event-search.md)
+- [Global Search fallback](global-search.md)
+- [Event Search (Find Events modal)](event-search.md)
 - [Account Management personas](account-management.md)
 - [Troubleshooting](troubleshooting.md)

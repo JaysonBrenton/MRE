@@ -1,5 +1,5 @@
 /**
- * @fileoverview Persisted UI state for Event / Session Level Analysis (survives primary tab switches).
+ * @fileoverview Persisted UI state for Event Level Analysis (survives primary tab switches).
  */
 
 "use client"
@@ -21,27 +21,21 @@ import type { ChartViewType } from "@/components/organisms/event-analysis/Unifie
 import { arrayMove } from "@dnd-kit/sortable"
 import {
   EVENT_LEVEL_ANALYSIS_PANEL_IDS,
-  SESSION_LEVEL_ANALYSIS_PANEL_IDS,
   allAnalysisPanelIds,
   computePanelDisplayOrder,
   defaultPanelOrder,
   expandSequenceFromHomeOrder,
   loadPanelOrder,
-  panelIdsForExpandScope,
   savePanelOrder,
   type AnalysisGlassPanelId,
-  type AnalysisPanelExpandScope,
   type EventLevelAnalysisPanelId,
-  type SessionLevelAnalysisPanelId,
   type StoredPanelOrder,
 } from "@/components/organisms/event-analysis/analysis-panel-order"
 
 export {
   EVENT_LEVEL_ANALYSIS_PANEL_IDS,
-  SESSION_LEVEL_ANALYSIS_PANEL_IDS,
   type AnalysisGlassPanelId,
   type EventLevelAnalysisPanelId,
-  type SessionLevelAnalysisPanelId,
 } from "@/components/organisms/event-analysis/analysis-panel-order"
 
 /** Decision D3: every card starts collapsed (mini) on first visit per event. */
@@ -76,12 +70,10 @@ type EventAnalysisUiStateValue = {
   isPanelExpanded: (panelId: AnalysisGlassPanelId) => boolean
   setPanelExpanded: (panelId: AnalysisGlassPanelId, expanded: boolean) => void
   togglePanelExpanded: (panelId: AnalysisGlassPanelId) => void
-  setAllPanelsExpanded: (expanded: boolean, scope: AnalysisPanelExpandScope) => void
+  setAllPanelsExpanded: (expanded: boolean) => void
   getPanelDisplayOrder: (panelId: AnalysisGlassPanelId) => number
   eventLevelPanelOrder: EventLevelAnalysisPanelId[]
-  sessionLevelPanelOrder: SessionLevelAnalysisPanelId[]
   reorderEventLevelPanels: (activeId: string, overId: string) => void
-  reorderSessionLevelPanels: (activeId: string, overId: string) => void
   resetPanelOrder: () => void
   /** Survives OverviewTab remount; used to avoid re-seeding lap chart drivers. */
   prevEventLevelLapSeedKeyRef: MutableRefObject<string>
@@ -105,7 +97,6 @@ function resetEventScopedState(
     setPanelExpanded: Dispatch<SetStateAction<Record<string, boolean>>>
     setPanelExpandSequence: Dispatch<SetStateAction<Record<string, number>>>
     setEventLevelPanelOrder: Dispatch<SetStateAction<EventLevelAnalysisPanelId[]>>
-    setSessionLevelPanelOrder: Dispatch<SetStateAction<SessionLevelAnalysisPanelId[]>>
   },
   seedKeyRef: MutableRefObject<string>,
   panelOrder: StoredPanelOrder
@@ -124,7 +115,6 @@ function resetEventScopedState(
   setters.setPanelExpanded(defaultPanelExpanded())
   setters.setPanelExpandSequence({})
   setters.setEventLevelPanelOrder(panelOrder.event)
-  setters.setSessionLevelPanelOrder(panelOrder.session)
   seedKeyRef.current = ""
 }
 
@@ -158,14 +148,10 @@ export function EventAnalysisUiStateProvider({
   const [eventLevelPanelOrder, setEventLevelPanelOrder] = useState<EventLevelAnalysisPanelId[]>(
     () => [...EVENT_LEVEL_ANALYSIS_PANEL_IDS]
   )
-  const [sessionLevelPanelOrder, setSessionLevelPanelOrder] = useState<
-    SessionLevelAnalysisPanelId[]
-  >(() => [...SESSION_LEVEL_ANALYSIS_PANEL_IDS])
   const prevEventLevelLapSeedKeyRef = useRef("")
   const lastEventIdRef = useRef<string | null>(null)
   const panelOrderRef = useRef({
     event: [...EVENT_LEVEL_ANALYSIS_PANEL_IDS] as EventLevelAnalysisPanelId[],
-    session: [...SESSION_LEVEL_ANALYSIS_PANEL_IDS] as SessionLevelAnalysisPanelId[],
   })
 
   useEffect(() => {
@@ -193,31 +179,20 @@ export function EventAnalysisUiStateProvider({
         setPanelExpanded,
         setPanelExpandSequence,
         setEventLevelPanelOrder,
-        setSessionLevelPanelOrder,
       },
       prevEventLevelLapSeedKeyRef,
       order
     )
   }, [eventId])
 
-  const panelScope = useCallback((panelId: AnalysisGlassPanelId): AnalysisPanelExpandScope => {
-    return (EVENT_LEVEL_ANALYSIS_PANEL_IDS as readonly string[]).includes(panelId)
-      ? "event"
-      : "session"
+  const nextExpandSequence = useCallback((prevSequence: Record<string, number>) => {
+    let max = -1
+    for (const id of EVENT_LEVEL_ANALYSIS_PANEL_IDS) {
+      const seq = prevSequence[id]
+      if (seq != null && seq > max) max = seq
+    }
+    return max + 1
   }, [])
-
-  const nextExpandSequence = useCallback(
-    (scope: AnalysisPanelExpandScope, prevSequence: Record<string, number>) => {
-      const scopeIds = panelIdsForExpandScope(scope)
-      let max = -1
-      for (const id of scopeIds) {
-        const seq = prevSequence[id]
-        if (seq != null && seq > max) max = seq
-      }
-      return max + 1
-    },
-    []
-  )
 
   const expandedStackForHomeOrder = useCallback(
     (homeOrder: readonly string[]) => {
@@ -237,22 +212,9 @@ export function EventAnalysisUiStateProvider({
     [eventLevelPanelOrder, expandedStackForHomeOrder]
   )
 
-  const sessionLevelDisplayOrder = useMemo(
-    () =>
-      computePanelDisplayOrder(
-        sessionLevelPanelOrder,
-        expandedStackForHomeOrder(sessionLevelPanelOrder)
-      ),
-    [sessionLevelPanelOrder, expandedStackForHomeOrder]
-  )
-
   const getPanelDisplayOrder = useCallback(
-    (panelId: AnalysisGlassPanelId) => {
-      const map =
-        panelScope(panelId) === "event" ? eventLevelDisplayOrder : sessionLevelDisplayOrder
-      return map.get(panelId) ?? 0
-    },
-    [eventLevelDisplayOrder, panelScope, sessionLevelDisplayOrder]
+    (panelId: AnalysisGlassPanelId) => eventLevelDisplayOrder.get(panelId) ?? 0,
+    [eventLevelDisplayOrder]
   )
 
   const isPanelExpanded = useCallback(
@@ -271,11 +233,10 @@ export function EventAnalysisUiStateProvider({
           return next
         }
         if (prev[panelId] != null) return prev
-        const scope = panelScope(panelId)
-        return { ...prev, [panelId]: nextExpandSequence(scope, prev) }
+        return { ...prev, [panelId]: nextExpandSequence(prev) }
       })
     },
-    [nextExpandSequence, panelScope]
+    [nextExpandSequence]
   )
 
   const togglePanelExpanded = useCallback(
@@ -286,14 +247,12 @@ export function EventAnalysisUiStateProvider({
     [panelExpanded, setPanelExpandedOne]
   )
 
-  const setAllPanelsExpanded = useCallback((expanded: boolean, scope: AnalysisPanelExpandScope) => {
-    const scopeIds = panelIdsForExpandScope(scope)
-    const homeOrder =
-      scope === "event" ? panelOrderRef.current.event : panelOrderRef.current.session
+  const setAllPanelsExpanded = useCallback((expanded: boolean) => {
+    const homeOrder = panelOrderRef.current.event
 
     setPanelExpanded((prev) => {
       const next = { ...prev }
-      for (const id of scopeIds) next[id] = expanded
+      for (const id of EVENT_LEVEL_ANALYSIS_PANEL_IDS) next[id] = expanded
       return next
     })
 
@@ -301,21 +260,21 @@ export function EventAnalysisUiStateProvider({
       const next = { ...prev }
       if (expanded) {
         const fromHome = expandSequenceFromHomeOrder(homeOrder)
-        for (const id of scopeIds) {
+        for (const id of EVENT_LEVEL_ANALYSIS_PANEL_IDS) {
           if (fromHome[id] != null) next[id] = fromHome[id]
         }
       } else {
-        for (const id of scopeIds) delete next[id]
+        for (const id of EVENT_LEVEL_ANALYSIS_PANEL_IDS) delete next[id]
       }
       return next
     })
   }, [])
 
   const persistPanelOrder = useCallback(
-    (eventOrder: EventLevelAnalysisPanelId[], sessionOrder: SessionLevelAnalysisPanelId[]) => {
+    (eventOrder: EventLevelAnalysisPanelId[]) => {
       if (!eventId) return
-      panelOrderRef.current = { event: eventOrder, session: sessionOrder }
-      savePanelOrder(eventId, { event: eventOrder, session: sessionOrder })
+      panelOrderRef.current = { event: eventOrder }
+      savePanelOrder(eventId, { event: eventOrder })
     },
     [eventId]
   )
@@ -334,18 +293,7 @@ export function EventAnalysisUiStateProvider({
     (activeId: string, overId: string) => {
       setEventLevelPanelOrder((prev) => {
         const next = reorderList(prev, activeId, overId)
-        persistPanelOrder(next, panelOrderRef.current.session)
-        return next
-      })
-    },
-    [persistPanelOrder, reorderList]
-  )
-
-  const reorderSessionLevelPanels = useCallback(
-    (activeId: string, overId: string) => {
-      setSessionLevelPanelOrder((prev) => {
-        const next = reorderList(prev, activeId, overId)
-        persistPanelOrder(panelOrderRef.current.event, next)
+        persistPanelOrder(next)
         return next
       })
     },
@@ -355,8 +303,7 @@ export function EventAnalysisUiStateProvider({
   const resetPanelOrder = useCallback(() => {
     const defaults = defaultPanelOrder()
     setEventLevelPanelOrder(defaults.event)
-    setSessionLevelPanelOrder(defaults.session)
-    persistPanelOrder(defaults.event, defaults.session)
+    persistPanelOrder(defaults.event)
   }, [persistPanelOrder])
 
   const value = useMemo<EventAnalysisUiStateValue>(
@@ -390,9 +337,7 @@ export function EventAnalysisUiStateProvider({
       setAllPanelsExpanded,
       getPanelDisplayOrder,
       eventLevelPanelOrder,
-      sessionLevelPanelOrder,
       reorderEventLevelPanels,
-      reorderSessionLevelPanels,
       resetPanelOrder,
       prevEventLevelLapSeedKeyRef,
     }),
@@ -415,9 +360,7 @@ export function EventAnalysisUiStateProvider({
       setAllPanelsExpanded,
       getPanelDisplayOrder,
       eventLevelPanelOrder,
-      sessionLevelPanelOrder,
       reorderEventLevelPanels,
-      reorderSessionLevelPanels,
       resetPanelOrder,
       panelExpanded,
       panelExpandSequence,

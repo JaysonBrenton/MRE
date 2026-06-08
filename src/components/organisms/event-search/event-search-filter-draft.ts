@@ -13,6 +13,10 @@ export interface EventSearchFilterDraft {
   includeLiveRC: boolean
   includeEverlaps: boolean
   includePracticeDays: boolean
+  /** When false, hide events with Ready status (laps_full). Default true = show all. */
+  includeReady: boolean
+  /** When false, hide events with Scheduled status (future date). Default true = show all. */
+  includeScheduled: boolean
 }
 
 export const DEFAULT_EVENT_SEARCH_FILTER_DRAFT: EventSearchFilterDraft = {
@@ -23,6 +27,8 @@ export const DEFAULT_EVENT_SEARCH_FILTER_DRAFT: EventSearchFilterDraft = {
   includeLiveRC: false,
   includeEverlaps: false,
   includePracticeDays: false,
+  includeReady: true,
+  includeScheduled: true,
 }
 
 export function buildCommittedFilterDraft(input: {
@@ -33,6 +39,8 @@ export function buildCommittedFilterDraft(input: {
   includeLiveRC: boolean
   includeEverlaps: boolean
   includePracticeDays: boolean
+  includeReady: boolean
+  includeScheduled: boolean
 }): EventSearchFilterDraft {
   return {
     selectedTrack: input.selectedTrack,
@@ -42,6 +50,8 @@ export function buildCommittedFilterDraft(input: {
     includeLiveRC: input.includeLiveRC,
     includeEverlaps: input.includeEverlaps,
     includePracticeDays: input.includePracticeDays,
+    includeReady: input.includeReady,
+    includeScheduled: input.includeScheduled,
   }
 }
 
@@ -53,7 +63,9 @@ export function isFilterDraftEqual(a: EventSearchFilterDraft, b: EventSearchFilt
     a.endDate === b.endDate &&
     a.includeLiveRC === b.includeLiveRC &&
     a.includeEverlaps === b.includeEverlaps &&
-    a.includePracticeDays === b.includePracticeDays
+    a.includePracticeDays === b.includePracticeDays &&
+    a.includeReady === b.includeReady &&
+    a.includeScheduled === b.includeScheduled
   )
 }
 

@@ -134,17 +134,16 @@ _job_store: Dict[str, Job] = {}
 _queue: asyncio.Queue[Job] = asyncio.Queue()
 _queue_order: deque[str] = deque()
 
-# Limit concurrent ingestion jobs (e.g. 2 at a time)
-_max_concurrent = max(1, int(os.getenv("INGESTION_QUEUE_MAX_CONCURRENT", "2")))
-_semaphore = asyncio.Semaphore(_max_concurrent)
+# Limit concurrent ingestion jobs (resolved at runtime via settings module)
+_semaphore: asyncio.Semaphore | None = None
+_semaphore_size = 0
+
+# Completed/failed jobs retention resolved at cleanup time
 
 # Serialize check-then-enqueue. Without this, two concurrent HTTP handlers can interleave
 # and enqueue duplicate jobs for the same event; workers then race on pg_try_advisory_lock
 # and the second raises IngestionInProgressError (409 to the client).
 _enqueue_mutex = threading.Lock()
-
-# Completed/failed jobs retention (seconds)
-_job_retention_seconds = int(os.getenv("INGESTION_QUEUE_JOB_TTL_SECONDS", "3600"))
 
 # Track whether background workers have been started (so we only start once)
 _workers_started = False
@@ -336,8 +335,30 @@ def _user_friendly_error_message(exc: BaseException) -> str:
     return msg
 
 
+def _max_concurrent_jobs() -> int:
+    from ingestion.common.settings import get_int
+
+    return max(1, get_int("INGESTION_QUEUE_MAX_CONCURRENT"))
+
+
+def _job_retention_seconds() -> int:
+    from ingestion.common.settings import get_int
+
+    return get_int("INGESTION_QUEUE_JOB_TTL_SECONDS")
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    global _semaphore, _semaphore_size
+    size = _max_concurrent_jobs()
+    if _semaphore is None or _semaphore_size != size:
+        _semaphore = asyncio.Semaphore(size)
+        _semaphore_size = size
+    return _semaphore
+
+
 def _cleanup_jobs() -> None:
-    if _job_retention_seconds <= 0:
+    retention = _job_retention_seconds()
+    if retention <= 0:
         # Immediate eviction of terminal jobs only. Must not drop RUNNING — another worker's
         # finish triggers cleanup while peers still hold RUNNING (e.g. TTL=0 for tests or ops).
         to_delete = [
@@ -346,7 +367,7 @@ def _cleanup_jobs() -> None:
             if job.status in (JobStatus.COMPLETED, JobStatus.FAILED)
         ]
     else:
-        cutoff = datetime.utcnow() - timedelta(seconds=_job_retention_seconds)
+        cutoff = datetime.utcnow() - timedelta(seconds=retention)
         to_delete = [
             job_id
             for job_id, job in _job_store.items()
@@ -413,7 +434,7 @@ async def _worker() -> None:
     while True:
         job = await _queue.get()
         _remove_from_queue_order(job.job_id)
-        async with _semaphore:
+        async with _get_semaphore():
             await _run_job(job)
         _queue.task_done()
 
@@ -423,7 +444,8 @@ def start_workers(num_workers: int | None = None) -> None:
     global _workers_started
     if _workers_started:
         return
-    worker_count = num_workers if num_workers is not None else _max_concurrent
+    max_concurrent = _max_concurrent_jobs()
+    worker_count = num_workers if num_workers is not None else max_concurrent
     for i in range(max(1, worker_count)):
         asyncio.create_task(_worker())
         logger.info("ingestion_queue_worker_started", worker_index=i)
@@ -431,15 +453,16 @@ def start_workers(num_workers: int | None = None) -> None:
     logger.info(
         "ingestion_queue_workers_ready",
         worker_loops=worker_count,
-        max_concurrent_jobs=_max_concurrent,
+        max_concurrent_jobs=max_concurrent,
     )
 
 
 def _reset_queue_state_for_tests() -> None:  # pragma: no cover - used in unit tests only
-    global _queue, _semaphore, _workers_started
+    global _queue, _semaphore, _semaphore_size, _workers_started
     _job_store.clear()
     _queue_order.clear()
     _queue = asyncio.Queue()
-    _semaphore = asyncio.Semaphore(_max_concurrent)
+    _semaphore = None
+    _semaphore_size = 0
     _workers_started = False
     _cleanup_jobs()

@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-31
+lastModified: 2026-06-08
 description: Index of all end-user guides for My Race Engineer
 purpose:
   Central directory for Markdown user documentation that mirrors the SPA guide
@@ -23,23 +23,31 @@ guides; see [`images/README.md`](./images/README.md) for refresh tips.
 
 ## Featured guides
 
-| Guide                                                    | Highlights                                                                                              |
-| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [Getting started](getting-started.md)                    | Register/login redirects, rails overview, Guides landing                                                |
-| [Account management](account-management.md)              | Profile modal densities/themes, signup validation                                                       |
-| [Navigation](navigation.md)                              | Adaptive rail taxonomy, telemetry / car / driver profiles, Track Maps, breadcrumbs, **My Events** latch |
-| [Global Search / `event-search` legacy](event-search.md) | `/search` Redux flow, pagination, **View Event** deep links                                             |
-| [My Event Analysis (dashboard shell)](dashboard.md)      | Redux selection, ingestion drawers, shortcuts                                                           |
-| [Event Analysis (tabs + subtabs)](event-analysis.md)     | Race vs Practice layouts, submenu analytics                                                             |
-| [Car type mapping](car-type-mapping.md)                  | Account-wide taxonomy rules surfaced via **Actions**                                                    |
-| [Driver features](driver-features.md)                    | Fuzzy confirmations, personas, API touchpoints                                                          |
-| [Troubleshooting](troubleshooting.md)                    | Deterministic triage aligned with ingestion stack                                                       |
+| Guide                                                | Highlights                                                                                              |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [Getting started](getting-started.md)                | Register/login redirects, rails overview, Guides landing                                                |
+| [Account management](account-management.md)          | Profile modal densities/themes, signup validation                                                       |
+| [Navigation](navigation.md)                          | Adaptive rail taxonomy, telemetry / car / driver profiles, Track Maps, breadcrumbs, **My Events** latch |
+| [Global Search](global-search.md)                    | `/search` keyword + session lookup, pagination, **View Event** deep links                               |
+| [Event Search (Find Events modal)](event-search.md)  | Omnibox, Filters popover, LiveRC discovery, import, status filters, cross-track browse                  |
+| [My Event Analysis (dashboard shell)](dashboard.md)  | Redux selection, ingestion drawers, shortcuts                                                           |
+| [Event Analysis (tabs + subtabs)](event-analysis.md) | Race vs Practice layouts, submenu analytics                                                             |
+| [Car type mapping](car-type-mapping.md)              | Account-wide taxonomy rules surfaced via **Actions**                                                    |
+| [Driver features](driver-features.md)                | Fuzzy confirmations, personas, API touchpoints                                                          |
+| [Troubleshooting](troubleshooting.md)                | Deterministic triage aligned with ingestion stack                                                       |
+
+### For administrators
+
+| Guide                                                     | Highlights                                                              |
+| --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Ingestion settings (admin)](admin-ingestion-settings.md) | Runtime config console at `/admin/ingestion/settings`, site policy JSON |
 
 ### For new racers (suggested reading order)
 
 1. [Getting started](getting-started.md)
 2. [Navigation](navigation.md)
-3. [Global Search](event-search.md)
+3. [Event Search](event-search.md) (Find Events modal) or
+   [Global Search](global-search.md)
 4. [My Event Analysis](dashboard.md) + [Event Analysis](event-analysis.md)
 5. [Driver features](driver-features.md)
 

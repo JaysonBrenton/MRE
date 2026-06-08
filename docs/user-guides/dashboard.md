@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-31
+lastModified: 2026-06-07
 description:
   Guide to the My Event Analysis dashboard shell (event selector + embedded
   analysis)
@@ -86,17 +86,19 @@ Press `⌘` + `E` (or **Actions → Find Events**) to open **Event Search**.
   look-ahead list (from your database) shows matching tracks and events.
   - Pick a **track** to run a search for that track.
   - Pick an **event** to open it for analysis straight away.
-- **Filters button:** The secondary controls live behind the **Filters** button
-  — **Track Selection**, **Date Filter**, **Search LiveRC**, **Search
-  Everlaps**, and (when enabled) **Include practice days**. A badge shows how
-  many non-default filters are active.
+- **Filters button:** Secondary controls live behind **Filters** — **Track
+  Selection**, **Date Filter**, **Search LiveRC**, **Search Everlaps**,
+  **Include practice days** (when enabled), and **Status** (Include Ready /
+  Include Scheduled). A badge shows how many non-default filters are active.
+  Changes apply only after **Apply**; they do not run a search by themselves.
 - **Searching LiveRC still works exactly as before:** open **Filters**, turn
   **Search LiveRC** on, pick a track and Search — results include both database
   **and** LiveRC events. (The omnibox look-ahead itself only suggests events
   already in your database.)
 
-See [Event Search omnibox architecture](../architecture/event-search-omnibox.md)
-for the full specification.
+See [Event Search user guide](event-search.md) and
+[event-search-omnibox architecture](../architecture/event-search-omnibox.md) for
+the full specification.
 
 ## Actions & ingestion affordances
 
@@ -128,10 +130,11 @@ SQL scripts, etc. stay in ops docs — not surfaced as user-editable knobs here.
 
 ## Related guides
 
-| Guide                                 | Highlights                 |
-| ------------------------------------- | -------------------------- |
-| [Event Analysis](event-analysis.md)   | Tab/menu breakdown         |
-| [Global Search](event-search.md)      | Catalogue discovery        |
-| [Driver Features](driver-features.md) | Fuzzy confirmations        |
-| [Navigation](navigation.md)           | Rail map                   |
-| [Troubleshooting](troubleshooting.md) | Spinner / ingestion triage |
+| Guide                                 | Highlights                         |
+| ------------------------------------- | ---------------------------------- |
+| [Event Analysis](event-analysis.md)   | Tab/menu breakdown                 |
+| [Event Search](event-search.md)       | Find Events modal, import, filters |
+| [Global Search](global-search.md)     | `/search` catalogue discovery      |
+| [Driver Features](driver-features.md) | Fuzzy confirmations                |
+| [Navigation](navigation.md)           | Rail map                           |
+| [Troubleshooting](troubleshooting.md) | Spinner / ingestion triage         |

@@ -29,9 +29,15 @@ export default async function GuidesPage() {
     },
     {
       title: "Global Search",
-      href: "/guides/event-search",
+      href: "/guides/global-search",
       description:
         "Use /search to query ingested events and sessions, apply driver/session/date filters, paginate results, and jump into My Event Analysis with View Event.",
+    },
+    {
+      title: "Event Search",
+      href: "/guides/event-search",
+      description:
+        "Find Events modal (⌘E): omnibox type-ahead, Filters popover, LiveRC discovery, import, status filters, and cross-track browse.",
     },
     {
       title: "Event Analysis",

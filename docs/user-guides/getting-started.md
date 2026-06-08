@@ -52,7 +52,8 @@ If auto-login fails, you receive the login screen with `?registered=true`.
 
 Destination mirrors registration:
 
-- **`/admin`** for administrators (console metrics + ingestion shortcuts).
+- **`/admin`** for administrators (console metrics, ingestion job triggers, and
+  [ingestion settings](admin-ingestion-settings.md) when implemented).
 - **`/eventAnalysis`** for standard personas.
 
 There is intentionally **no discrete “welcome” splash** after login—the mission
@@ -93,7 +94,8 @@ Regardless of persona you keep:
 | Topic                            | Guide                                               |
 | -------------------------------- | --------------------------------------------------- |
 | Shell + Redux selection model    | [My Event Analysis / dashboard guide](dashboard.md) |
-| `/search` filters & pagination   | [Global Search guide](event-search.md)              |
+| `/search` filters & pagination   | [Global Search guide](global-search.md)             |
+| Find Events modal (⌘E)           | [Event Search guide](event-search.md)               |
 | Tabs, submenu analytics, ladders | [Event Analysis guide](event-analysis.md)           |
 | Class normalization              | [Car type mapping guide](car-type-mapping.md)       |
 | Fuzzy confirmations              | [Driver Features guide](driver-features.md)         |

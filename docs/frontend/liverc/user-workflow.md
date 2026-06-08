@@ -30,24 +30,27 @@ relatedFiles:
 version 0.1.1 feature specifications.
 
 > **⚠️ Shipped reality (Alpha v0.1.0) vs. this spec.** This document captures
-> the original UX design for a track-first Event Search and a separate Event
-> Analysis page. The **shipped** experience differs and is the source of truth:
+> the original UX design for a track-first Event Search page and a separate
+> Event Analysis page. The **shipped** experience differs in places; use these
+> as the source of truth:
 >
-> - Search ships as **Global Search** at **`/search`** (free-text plus optional
->   Driver Name, Session Type, and date filters; Events + Sessions result
->   tables). The legacy **`/event-search`** route now **redirects to
->   `/search`**. The searchable track modal, favourite-track chips, multi-select
->   import checkboxes, and per-row "Analyse event" buttons described below are
->   **not** the shipped Global Search UI — treat them as planned/aspirational.
-> - Importing ships via **Actions → Find and Import Events** inside **My Event
->   Analysis** (`/eventAnalysis`), not from the search results table.
+> - **Dashboard Event Search modal** (⌘E / **Find Events**): omnibox type-ahead,
+>   Filters popover (track, date, Search LiveRC, Include practice days, Include
+>   Ready / Include Scheduled), results table with Download/Open/import. See
+>   [`docs/user-guides/event-search.md`](../../user-guides/event-search.md) and
+>   [`docs/architecture/event-search-omnibox.md`](../../architecture/event-search-omnibox.md).
+> - **Global Search** at **`/search`**: free-text plus optional Driver Name,
+>   Session Type, and date filters; Events + Sessions result tables. Legacy
+>   **`/event-search`** redirects here. See
+>   [`docs/user-guides/global-search.md`](../../user-guides/global-search.md).
+> - Importing also ships via rows in the Event Search modal and **Actions → Find
+>   and Import Events** on My Event Analysis (`/eventAnalysis`).
 > - Event analysis ships embedded in **`/eventAnalysis`** (Redux event
 >   selection, `?eventId=` deep links), **not** at `/events/analyse/{slug}`, and
 >   uses Overview / Event Analysis / Session Analysis / Entry List tabs rather
 >   than the Overview / Drivers / Sessions / Comparisons tabs sketched in §4.
-> - Canonical shipped behaviour:
->   [`docs/user-guides/event-search.md`](../../user-guides/event-search.md),
->   [`docs/user-guides/dashboard.md`](../../user-guides/dashboard.md), and
+> - Additional shipped behaviour:
+>   [`docs/user-guides/dashboard.md`](../../user-guides/dashboard.md) and
 >   [`docs/user-guides/event-analysis.md`](../../user-guides/event-analysis.md).
 
 ## Purpose

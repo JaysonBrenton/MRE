@@ -50,7 +50,7 @@ export async function triggerTrackSync(
   ipAddress?: string,
   userAgent?: string
 ): Promise<{ jobId: string }> {
-  assertScrapingEnabled()
+  await assertScrapingEnabled()
   const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
 
   try {
@@ -141,7 +141,7 @@ export async function triggerEventIngestion(
   ipAddress?: string,
   userAgent?: string
 ): Promise<{ success: boolean; message: string }> {
-  assertScrapingEnabled()
+  await assertScrapingEnabled()
   const ingestionServiceUrl = env.INGESTION_SERVICE_URL || "http://localhost:8000"
 
   try {

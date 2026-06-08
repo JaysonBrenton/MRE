@@ -39,6 +39,7 @@ model User {
   driverLinks       UserDriverLink[]
   persona           Persona?          @relation(fields: [personaId], references: [id])
   auditLogs         AuditLog[]
+  ingestionSettingsUpdated IngestionSetting[]
   carProfiles       CarProfile[]
   driverProfiles    DriverProfile[]
   trackMaps         TrackMap[]
@@ -843,6 +844,17 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([resourceType, resourceId])
   @@map("audit_logs")
+}
+
+model IngestionSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  updatedByUser User? @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@map("ingestion_settings")
 }
 
 model ApplicationLog {

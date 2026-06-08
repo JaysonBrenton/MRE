@@ -3579,6 +3579,59 @@ curl -X POST "http://localhost:3001/api/v1/admin/ingestion" \
 
 ---
 
+### GET /api/v1/admin/ingestion/settings
+
+Lists all registered ingestion settings with effective values, source, and apply
+mode. Admin-only.
+
+**Authentication:** Required (Admin only)
+
+**Response (200 OK):** Settings array grouped by category; secrets masked. See
+[Admin Ingestion Settings API](admin-ingestion-settings-api.md) for full schema.
+
+**Error Codes:**
+
+- `UNAUTHORIZED` (401) - Authentication required
+- `FORBIDDEN` (403) - Admin privileges required
+
+---
+
+### PATCH /api/v1/admin/ingestion/settings
+
+Updates runtime ingestion settings (DB overrides). Requires
+`ADMIN_INGESTION_SETTINGS_WRITABLE=true`.
+
+**Authentication:** Required (Admin only)
+
+**Request Body:**
+
+```json
+{
+  "updates": [{ "key": "MRE_SCRAPE_ENABLED", "value": false }],
+  "confirmToken": "disable_scrape"
+}
+```
+
+**Response (200 OK):** Updated keys and refreshed settings list.
+
+**Error Codes:**
+
+- `FORBIDDEN` (403) - Non-admin or read-only mode
+- `VALIDATION_ERROR` (400) - Invalid value or missing confirmation
+- `SETTING_READ_ONLY` (400) - Key is not writable
+
+---
+
+### POST /api/v1/admin/ingestion/settings/reload
+
+Clears in-process settings caches in Next.js and the Python ingestion service.
+
+**Authentication:** Required (Admin only)
+
+**Response (200 OK):** Success envelope.
+
+---
+
 ### GET /api/v1/admin/events
 
 Gets all events with pagination and filtering (admin-only endpoint).

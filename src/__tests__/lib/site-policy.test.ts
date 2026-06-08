@@ -88,29 +88,24 @@ describe("Scraping Kill-Switch", () => {
   })
 
   describe("assertScrapingEnabled", () => {
-    it("should not throw when scraping is enabled", () => {
+    it("should not throw when scraping is enabled", async () => {
       process.env.MRE_SCRAPE_ENABLED = "true"
-      expect(() => assertScrapingEnabled()).not.toThrow()
+      await expect(assertScrapingEnabled()).resolves.toBeUndefined()
     })
 
-    it("should throw when scraping is disabled", () => {
+    it("should throw when scraping is disabled", async () => {
       process.env.MRE_SCRAPE_ENABLED = "false"
-      expect(() => assertScrapingEnabled()).toThrow(
+      await expect(assertScrapingEnabled()).rejects.toThrow(
         "LiveRC scraping is temporarily disabled by operations. Try again once MRE_SCRAPE_ENABLED is restored."
       )
     })
 
-    it("should throw with correct error message", () => {
+    it("should throw with correct error message", async () => {
       process.env.MRE_SCRAPE_ENABLED = "0"
-      try {
-        assertScrapingEnabled()
-        expect.fail("Should have thrown")
-      } catch (error) {
-        expect(error).toBeInstanceOf(Error)
-        expect((error as Error).message).toBe(
-          "LiveRC scraping is temporarily disabled by operations. Try again once MRE_SCRAPE_ENABLED is restored."
-        )
-      }
+      await expect(assertScrapingEnabled()).rejects.toMatchObject({
+        message:
+          "LiveRC scraping is temporarily disabled by operations. Try again once MRE_SCRAPE_ENABLED is restored.",
+      })
     })
   })
 

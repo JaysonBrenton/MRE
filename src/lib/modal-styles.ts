@@ -212,6 +212,11 @@ export const FULL_RACE_RESULTS_MODAL_RESIZABLE_DEFAULT = {
 export const MODAL_PORTAL_Z_INDEX = 200
 
 /**
+ * Portaled Event Search Filters popover — above {@link MODAL_PORTAL_Z_INDEX}, below nested modals.
+ */
+export const EVENT_SEARCH_FILTERS_POPOVER_Z_INDEX = 210
+
+/**
  * Overlays (e.g. {@link TrackSelectionModal}) opened on top of a shared `Modal` must use a higher
  * z-index than {@link MODAL_PORTAL_Z_INDEX}.
  */

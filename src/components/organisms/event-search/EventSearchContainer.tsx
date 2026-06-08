@@ -43,6 +43,7 @@ import {
   isEventInFuture,
   toLocalDateString,
 } from "@/lib/date-utils"
+import { applyEventStatusFilters, isEventFullyIngested } from "./event-search-status-filter"
 
 /** API response type for track data */
 interface ApiTrack {
@@ -248,13 +249,6 @@ function persistKnownImportedIds(ids: Set<string>) {
   }
 }
 
-/** True when event has race/lap data imported (ingest_depth = laps_full). Excludes LiveRC-only and DB events with ingest_depth = none. */
-function isEventFullyIngested(e: { id: string; ingestDepth?: string }): boolean {
-  if (e.id.startsWith("liverc-")) return false
-  const d = (e.ingestDepth ?? "").trim().toLowerCase()
-  return d === "laps_full" || d === "lapsfull"
-}
-
 function getRangeForPreset(preset: string): { startDate: string; endDate: string } {
   const end = new Date()
   const start = new Date()
@@ -401,6 +395,9 @@ export default function EventSearchContainer({
   const [includeLiveRC, setIncludeLiveRC] = useState(false)
   // Search Everlaps: reserved for a future pipeline; UI only until wired
   const [includeEverlaps, setIncludeEverlaps] = useState(false)
+  // Status filters: default on (show all); off hides Ready or Scheduled rows client-side
+  const [includeReady, setIncludeReady] = useState(true)
+  const [includeScheduled, setIncludeScheduled] = useState(true)
   const [practiceDaysFromDb, setPracticeDaysFromDb] = useState<ApiIngestedPracticeDay[]>([])
   const [discoveredPracticeDays, setDiscoveredPracticeDays] = useState<
     DiscoveredPracticeDaySummary[]
@@ -3349,6 +3346,8 @@ export default function EventSearchContainer({
     setIncludeLiveRC(draft.includeLiveRC)
     setIncludeEverlaps(draft.includeEverlaps)
     setIncludePracticeDays(draft.includePracticeDays)
+    setIncludeReady(draft.includeReady)
+    setIncludeScheduled(draft.includeScheduled)
     setErrors((prev) => ({
       ...prev,
       track: undefined,
@@ -3363,12 +3362,16 @@ export default function EventSearchContainer({
       dateRangePreset !== "none" ||
       includeLiveRC ||
       includeEverlaps ||
-      includePracticeDays
+      includePracticeDays ||
+      !includeReady ||
+      !includeScheduled
 
     handleDateRangePresetChange("none")
     setIncludeLiveRC(false)
     setIncludeEverlaps(false)
     setIncludePracticeDays(false)
+    setIncludeReady(true)
+    setIncludeScheduled(true)
     setSelectedTrack(null)
     setErrors((prev) => ({ ...prev, track: undefined }))
     try {
@@ -3606,11 +3609,11 @@ export default function EventSearchContainer({
   }
 
   // Track-scoped search with LiveRC off: laps_full only. Global browse: full DB catalogue.
-  const displayedEvents = useMemo(
-    () =>
-      !includeLiveRC && !isGlobalBrowse ? events.filter((e) => isEventFullyIngested(e)) : events,
-    [includeLiveRC, isGlobalBrowse, events]
-  )
+  const displayedEvents = useMemo(() => {
+    const base =
+      !includeLiveRC && !isGlobalBrowse ? events.filter((e) => isEventFullyIngested(e)) : events
+    return applyEventStatusFilters(base, { includeReady, includeScheduled })
+  }, [includeLiveRC, isGlobalBrowse, events, includeReady, includeScheduled])
 
   // Combined list (events + practice days) when include practice days is on.
   // Practice days are merged by date so ingested rows keep discovered metadata (sessions, laps, drivers, classes).
@@ -3830,6 +3833,8 @@ export default function EventSearchContainer({
           includePracticeDays={includePracticeDays}
           includeLiveRC={includeLiveRC}
           includeEverlaps={includeEverlaps}
+          includeReady={includeReady}
+          includeScheduled={includeScheduled}
           onApplyFilters={handleApplyFilters}
           onClearFilters={handleClearFilters}
           canSearchWithoutTrack={searchMode === "events" && !includeLiveRC && !includePracticeDays}

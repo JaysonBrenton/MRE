@@ -182,6 +182,13 @@ managing the MRE application. The console includes:
 - View ingestion logs for specific operations
 - Real-time status updates for running jobs
 
+**Ingestion Settings Console:**
+
+- View and edit runtime ingestion configuration from `/admin/ingestion/settings`
+- Database-backed overrides with audit trail (`ingestion.settings.update`)
+- See
+  [admin-ingestion-settings-console.md](../architecture/admin-ingestion-settings-console.md)
+
 **Audit Logs:**
 
 - View all audit log entries

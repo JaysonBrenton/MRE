@@ -28,14 +28,29 @@ from sqlalchemy import select, and_
 
 logger = get_logger(__name__)
 
-# Short-lived cache for discovered practice days per (track_slug, year, month)
-# TTL in seconds (default 10 minutes); set PRACTICE_DISCOVER_CACHE_TTL_SECONDS to override.
 _PRACTICE_DISCOVER_CACHE: Dict[Tuple[str, int, int], Tuple[List[PracticeDaySummary], float]] = {}
-_PRACTICE_DISCOVER_CACHE_TTL = max(0, int(os.getenv("PRACTICE_DISCOVER_CACHE_TTL_SECONDS", "600")))
 
-# Timeouts so one slow request doesn't dominate (seconds)
-_PRACTICE_MONTH_VIEW_TIMEOUT = float(os.getenv("PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS", "15"))
-_PRACTICE_DAY_OVERVIEW_TIMEOUT = float(os.getenv("PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS", "25"))
+
+def _practice_discover_cache_ttl() -> int:
+    from ingestion.common.settings import get_int
+
+    return max(0, get_int("PRACTICE_DISCOVER_CACHE_TTL_SECONDS"))
+
+
+def _practice_month_view_timeout() -> float:
+    from ingestion.common.settings import get_effective
+
+    return float(
+        get_effective("PRACTICE_DISCOVER_MONTH_VIEW_TIMEOUT_SECONDS", mask_secrets=False).effective_value
+    )
+
+
+def _practice_day_overview_timeout() -> float:
+    from ingestion.common.settings import get_effective
+
+    return float(
+        get_effective("PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS", mask_secrets=False).effective_value
+    )
 
 
 def _get_cached_practice_days(track_slug: str, year: int, month: int) -> Optional[List[PracticeDaySummary]]:
@@ -54,7 +69,7 @@ def _set_cached_practice_days(
     track_slug: str, year: int, month: int, practice_days: List[PracticeDaySummary]
 ) -> None:
     key = (track_slug, year, month)
-    _PRACTICE_DISCOVER_CACHE[key] = (practice_days, time.time() + _PRACTICE_DISCOVER_CACHE_TTL)
+    _PRACTICE_DISCOVER_CACHE[key] = (practice_days, time.time() + _practice_discover_cache_ttl())
 
 
 def get_cached_practice_days(
@@ -140,7 +155,7 @@ async def discover_practice_days(
                             year=year,
                             month=month,
                         ),
-                        timeout=_PRACTICE_MONTH_VIEW_TIMEOUT,
+                        timeout=_practice_month_view_timeout(),
                     )
                 except asyncio.TimeoutError:
                     logger.warning(
@@ -148,7 +163,7 @@ async def discover_practice_days(
                         track_slug=track_slug,
                         year=year,
                         month=month,
-                        timeout_seconds=_PRACTICE_MONTH_VIEW_TIMEOUT,
+                        timeout_seconds=_practice_month_view_timeout(),
                     )
                     dates_with_practice = []
 
@@ -169,14 +184,14 @@ async def discover_practice_days(
                                         track_slug=track_slug,
                                         practice_date=practice_date,
                                     ),
-                                    timeout=_PRACTICE_DAY_OVERVIEW_TIMEOUT,
+                                    timeout=_practice_day_overview_timeout(),
                                 )
                         except asyncio.TimeoutError:
                             logger.warning(
                                 "practice_day_overview_timeout",
                                 track_slug=track_slug,
                                 date=practice_date.isoformat(),
-                                timeout_seconds=_PRACTICE_DAY_OVERVIEW_TIMEOUT,
+                                timeout_seconds=_practice_day_overview_timeout(),
                             )
                             return None
                         except Exception as e:

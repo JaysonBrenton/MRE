@@ -46,6 +46,14 @@ pages).
 
 ![Search results tables with View Event links](./images/global-search-results.png)
 
+### From Event Search (Find Events modal)
+
+1. Press **⌘E** or choose **Actions → Find Events** on My Event Analysis.
+2. Pick an event from the omnibox or click **Open** on an imported row in the
+   results table.
+
+See [Event Search guide](event-search.md).
+
 ### From My Events (navigation rail)
 
 When you are already on `/eventAnalysis` with a **race-day** event selected, a
@@ -217,7 +225,8 @@ handlers.
 
 - [Mains ladder (architecture reference)](../architecture/event-analysis-mains-ladder.md)
 - [My Event Analysis (dashboard shell)](dashboard.md)
-- [Global Search](event-search.md)
+- [Global Search](global-search.md)
+- [Event Search (Find Events modal)](event-search.md)
 - [Navigation & shortcuts](navigation.md)
 - [Driver Features & My Events rail](driver-features.md)
 - [Troubleshooting](troubleshooting.md)

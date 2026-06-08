@@ -23,12 +23,12 @@ selection, event discovery, on-demand ingestion, and data visualization.
 
 > **Note (Alpha v0.1.0) — shipped surfaces.** These stories describe the
 > designed LiveRC integration. As shipped, drivers reach this functionality
-> through **Global Search** (`/search`) for recall and through **Actions → Find
-> and Import Events** inside **My Event Analysis** (`/eventAnalysis`) for
-> track-filtered discovery/import; analysis and visualization render embedded in
-> `/eventAnalysis`. The standalone track-selection / date-range / per-event
-> ingestion screens below are design intent — see
-> [`docs/user-guides/event-search.md`](../user-guides/event-search.md) and
+> through **Global Search** (`/search`) for recall, the **Event Search** modal
+> (Find Events / ⌘E) for track-scoped discovery/import, and **Actions → Find and
+> Import Events** inside **My Event Analysis** (`/eventAnalysis`); analysis and
+> visualization render embedded in `/eventAnalysis`. See
+> [`docs/user-guides/event-search.md`](../user-guides/event-search.md),
+> [`docs/user-guides/global-search.md`](../user-guides/global-search.md), and
 > [`docs/user-guides/event-analysis.md`](../user-guides/event-analysis.md) for
 > the running UI.
 

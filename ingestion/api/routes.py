@@ -168,7 +168,9 @@ async def _run_track_sync_job(job_id: str, include_metadata: bool) -> None:
     try:
         repository = Repository(session)
         connector = LiveRCConnector()
-        metadata_concurrency = int(os.getenv("TRACK_SYNC_METADATA_CONCURRENCY", "6"))
+        from ingestion.common.settings import get_int
+
+        metadata_concurrency = get_int("TRACK_SYNC_METADATA_CONCURRENCY")
         service = TrackSyncService(
             db=session,
             repository=repository,

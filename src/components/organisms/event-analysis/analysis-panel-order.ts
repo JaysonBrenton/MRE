@@ -1,5 +1,5 @@
 /**
- * @fileoverview Panel order persistence for Event / Session Level Analysis grids.
+ * @fileoverview Panel order persistence for Event Level Analysis grids.
  */
 
 export const EVENT_LEVEL_ANALYSIS_PANEL_IDS = [
@@ -8,23 +8,13 @@ export const EVENT_LEVEL_ANALYSIS_PANEL_IDS = [
   "event-level-analysis-col-4",
   "event-level-analysis-col-5",
   "event-level-analysis-col-6",
-  "event-level-analysis-col-7",
   "event-level-analysis-col-8",
 ] as const
 
-export const SESSION_LEVEL_ANALYSIS_PANEL_IDS = [
-  "session-level-analysis-col-1",
-  "session-level-analysis-col-2",
-] as const
-
 export type EventLevelAnalysisPanelId = (typeof EVENT_LEVEL_ANALYSIS_PANEL_IDS)[number]
-export type SessionLevelAnalysisPanelId = (typeof SESSION_LEVEL_ANALYSIS_PANEL_IDS)[number]
-export type AnalysisGlassPanelId = EventLevelAnalysisPanelId | SessionLevelAnalysisPanelId
+export type AnalysisGlassPanelId = EventLevelAnalysisPanelId
 
-const ALL_ANALYSIS_PANEL_IDS = [
-  ...EVENT_LEVEL_ANALYSIS_PANEL_IDS,
-  ...SESSION_LEVEL_ANALYSIS_PANEL_IDS,
-]
+const ALL_ANALYSIS_PANEL_IDS = [...EVENT_LEVEL_ANALYSIS_PANEL_IDS]
 
 export function allAnalysisPanelIds(): readonly AnalysisGlassPanelId[] {
   return ALL_ANALYSIS_PANEL_IDS
@@ -34,13 +24,11 @@ const STORAGE_KEY_PREFIX = "mre-analysis-panel-order"
 
 export type StoredPanelOrder = {
   event: EventLevelAnalysisPanelId[]
-  session: SessionLevelAnalysisPanelId[]
 }
 
 export function defaultPanelOrder(): StoredPanelOrder {
   return {
     event: [...EVENT_LEVEL_ANALYSIS_PANEL_IDS],
-    session: [...SESSION_LEVEL_ANALYSIS_PANEL_IDS],
   }
 }
 
@@ -65,7 +53,6 @@ export function loadPanelOrder(eventId: string): StoredPanelOrder {
     const parsed = JSON.parse(raw) as Partial<StoredPanelOrder>
     return {
       event: normalizePanelOrder(parsed.event, EVENT_LEVEL_ANALYSIS_PANEL_IDS),
-      session: normalizePanelOrder(parsed.session, SESSION_LEVEL_ANALYSIS_PANEL_IDS),
     }
   } catch {
     return defaultPanelOrder()
@@ -80,8 +67,6 @@ export function savePanelOrder(eventId: string, order: StoredPanelOrder): void {
     // Ignore quota / private-mode errors.
   }
 }
-
-export type AnalysisPanelExpandScope = "event" | "session"
 
 /** Expanded panels first (by expand sequence), then collapsed panels in home order. */
 export function computePanelDisplayOrder(
@@ -98,8 +83,4 @@ export function computePanelDisplayOrder(
 /** Build expand sequence from home order (Expand all). */
 export function expandSequenceFromHomeOrder(homeOrder: readonly string[]): Record<string, number> {
   return Object.fromEntries(homeOrder.map((id, index) => [id, index]))
-}
-
-export function panelIdsForExpandScope(scope: AnalysisPanelExpandScope): readonly string[] {
-  return scope === "event" ? EVENT_LEVEL_ANALYSIS_PANEL_IDS : SESSION_LEVEL_ANALYSIS_PANEL_IDS
 }

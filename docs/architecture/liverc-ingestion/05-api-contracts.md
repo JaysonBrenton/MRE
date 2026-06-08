@@ -98,6 +98,26 @@ poll **GET /ingestion/jobs/{job_id}** until the job status is `completed` or
 `failed`. See [28. Async Ingestion Queue](28-async-ingestion-queue.md) for
 architecture, configuration, and behaviour.
 
+### 1.5 Admin ingestion settings
+
+Runtime configuration for the ingestion service is exposed to administrators via
+the Next.js admin console and internal Python admin routes. This is **separate**
+from ingest trigger endpoints in §2+.
+
+| Surface             | Path                                           | Auth                      |
+| ------------------- | ---------------------------------------------- | ------------------------- |
+| Next.js admin API   | `GET/PATCH /api/v1/admin/ingestion/settings`   | Admin session             |
+| Next.js reload      | `POST /api/v1/admin/ingestion/settings/reload` | Admin session             |
+| Python internal API | `GET /api/v1/admin/settings`                   | `X-Ingestion-Admin-Token` |
+| Python reload       | `POST /api/v1/admin/settings/reload`           | `X-Ingestion-Admin-Token` |
+
+Normative contracts:
+[admin-ingestion-settings-api.md](../../api/admin-ingestion-settings-api.md).  
+Architecture: [admin-ingestion-settings-console.md](../admin-ingestion-settings-console.md),
+[33-ingestion-settings-registry-and-runtime-config.md](33-ingestion-settings-registry-and-runtime-config.md).
+
+**Status:** Implemented.
+
 ---
 
 ## 2. Track Catalogue APIs

@@ -95,7 +95,12 @@ class SitePolicy:
         self._robots_delay: Dict[str, float] = {}
         self._host_state: Dict[str, _HostState] = {}
         self._conditional_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
-        self._conditional_cache_max = max(0, int(os.getenv("SITE_POLICY_CACHE_MAX", "256")))
+        try:
+            from ingestion.common.settings import get_int
+
+            self._conditional_cache_max = max(0, get_int("SITE_POLICY_CACHE_MAX"))
+        except Exception:
+            self._conditional_cache_max = max(0, int(os.getenv("SITE_POLICY_CACHE_MAX", "256")))
         # Track hosts that don't have robots.txt (404) - per spec, these allow all paths
         self._no_robots_hosts: set[str] = set()
 
@@ -104,6 +109,10 @@ class SitePolicy:
         if cls._shared is None:
             cls._shared = cls()
         return cls._shared
+
+    @classmethod
+    def reset_shared(cls) -> None:
+        cls._shared = None
 
     def _load_config(self) -> Dict[str, Any]:
         if not self._policy_path.exists():
@@ -117,7 +126,24 @@ class SitePolicy:
                 " Set SITE_POLICY_PATH or ensure policies/site_policy/policy.json is available."
             )
         with self._policy_path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+            base_config = json.load(handle)
+
+        overrides: Dict[str, Any] = {}
+        try:
+            from ingestion.common.settings import get_effective
+
+            effective = get_effective("site_policy_overrides", mask_secrets=False)
+            raw = str(effective.effective_value).strip()
+            if raw and raw not in ("{}", "null"):
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    overrides = parsed
+        except Exception as exc:  # noqa: BLE001 — fall back to base policy only
+            logger.warning("site_policy_overrides_load_failed", error=str(exc))
+
+        from ingestion.common.site_policy_merge import merge_site_policy
+
+        return merge_site_policy(base_config, overrides)
 
     def _match_rule(self, host: str) -> HostRule:
         for rule in self._host_rules:
@@ -146,8 +172,14 @@ class SitePolicy:
         return state
 
     def is_enabled(self) -> bool:
-        flag = os.getenv(self._kill_switch_env, "true").strip().lower()
-        return flag not in {"0", "false", "off", "no"}
+        try:
+            from ingestion.common.settings import get_effective
+
+            effective = get_effective(self._kill_switch_env, mask_secrets=False)
+            return bool(effective.effective_value)
+        except KeyError:
+            flag = os.getenv(self._kill_switch_env, "true").strip().lower()
+            return flag not in {"0", "false", "off", "no"}
 
     def ensure_enabled(self, source: str = "external") -> None:
         if not self.is_enabled():

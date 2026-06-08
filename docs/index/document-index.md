@@ -14,7 +14,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-05-31  
+**Last Updated:** 2026-06-08  
 **Purpose:** Complete listing of all documentation files in the MRE repository.
 
 This index is organized by directory to mirror the on-disk layout under `docs/`
@@ -88,8 +88,8 @@ actual file tree. For a curated, description-rich entry point, see
   component paths under `src/components/`.
 - [Dashboard Architecture](../architecture/dashboard-architecture.md) — Event
   selection + Event Analysis integration model and Redux-backed UI state.
-- [Search Feature](../architecture/search-feature.md) — `/search` and
-  `/event-search` behaviour, Redux slices, and persisted filters.
+- [Search Feature](../architecture/search-feature.md) — `/search` Global Search;
+  `/event-search` redirect; Redux slices and persisted filters.
 - [Event Search Omnibox](../architecture/event-search-omnibox.md) —
   database-only type-ahead omnibox and collapsed Filters control for the
   dashboard Event Search modal.
@@ -156,7 +156,11 @@ A 31-document series covering the Python ingestion subsystem.
 - [30 - Pitstop Detection Testing Strategy](../architecture/liverc-ingestion/30-pitstop-detection-testing-strategy.md)
 - [31 - Recent Events Auto-Ingest](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md)
   — Nightly discovery + full ingest for recent LiveRC events on followed tracks
-  (implemented; gated by `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED`, default off).
+  (implemented; gated by `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED`, default off)
+- [33 - Ingestion Settings Registry and Runtime Config](../architecture/liverc-ingestion/33-ingestion-settings-registry-and-runtime-config.md)
+  — **Implemented** (47 keys)
+- [Admin Ingestion Settings Console](../architecture/admin-ingestion-settings-console.md)
+  — **Implemented**
 
 ---
 
@@ -172,6 +176,8 @@ A 31-document series covering the Python ingestion subsystem.
 - [API Reference](../api/api-reference.md) — Endpoint catalog for the `/api/v1`
   surface (auth, events, races, drivers, telemetry, track-maps, profiles, car
   taxonomy, leaderboards, practice-days, personas, admin).
+- [Admin Ingestion Settings API](../api/admin-ingestion-settings-api.md) —
+  **Implemented** settings console contracts
 - [API Versioning Strategy](../api/versioning-strategy.md) — URL path versioning
   (`/api/v1`), deprecation policy, breaking-change rules.
 - [Generated Documentation Inventory](../reference/generated/README.md) — How
@@ -248,6 +254,8 @@ A 31-document series covering the Python ingestion subsystem.
 - [Monitoring & Observability Guide](../operations/observability-guide.md)
 - [LiveRC Operations Guide](../operations/liverc-operations-guide.md)
 - [Recent Events Auto-Ingest Runbook](../operations/recent-events-auto-ingest-runbook.md)
+- [Admin Ingestion Settings Runbook](../operations/admin-ingestion-settings-runbook.md)
+  — **Implemented**
 - [Pitstop Detection Runbook](../operations/pitstop-detection-runbook.md)
 
 ---
@@ -330,12 +338,15 @@ These guides mirror the in-app `/guides/*` routes.
 - [Getting Started](../user-guides/getting-started.md)
 - [Navigation](../user-guides/navigation.md)
 - [Account Management](../user-guides/account-management.md)
-- [Event Search (`/search`)](../user-guides/event-search.md)
+- [Event Search (Find Events modal)](../user-guides/event-search.md)
+- [Global Search (`/search`)](../user-guides/global-search.md)
 - [Event Analysis](../user-guides/event-analysis.md)
 - [My Event Analysis (Dashboard)](../user-guides/dashboard.md)
 - [Car Type Mapping](../user-guides/car-type-mapping.md)
 - [Driver Features](../user-guides/driver-features.md)
 - [Troubleshooting](../user-guides/troubleshooting.md)
+- [Admin: Ingestion Settings](../user-guides/admin-ingestion-settings.md) —
+  **Implemented** (admin-only)
 - [User Guide Images](../user-guides/images/README.md)
 
 ---
@@ -366,6 +377,8 @@ These guides mirror the in-app `/guides/*` routes.
 - [ADR-20260405 — Bump-ups LiveRC Heat Sheet Ladder Strategy](../adr/ADR-20260405-bump-ups-liveRC-heat-sheet-ladder-strategy.md)
 - [ADR-20260531 — Scheduled Recent Events Auto-Ingest](../adr/ADR-20260531-scheduled-recent-events-auto-ingest.md)
 - [ADR-20260601 — Event Search Omnibox (Database-Only)](../adr/ADR-20260601-event-search-omnibox-db-only.md)
+- [ADR-20260608 — Admin Ingestion Settings Console](../adr/ADR-20260608-admin-ingestion-settings-console.md)
+  — **Accepted**
 
 ---
 
@@ -402,6 +415,10 @@ These guides mirror the in-app `/guides/*` routes.
 - [Application Performance Remediation (2026-03)](../implimentation_plans/application-performance-remediation-2026-03.md)
 - [Event Host/Track Override (2026-04)](../implimentation_plans/event-host-track-override-2026-04.md)
 - [Recent Events Auto-Ingest (2026-05)](../implimentation_plans/recent-events-auto-ingest-2026-05.md)
+- [Admin Ingestion Settings Console (2026-06)](../implimentation_plans/admin-ingestion-settings-console-2026-06.md)
+  — **Implemented**
+- [Admin Ingestion Settings Checklist](../implimentation_plans/admin-ingestion-settings-console-checklist.md)
+  — task tracker (Phases 1–4 complete)
 - [Event Search Omnibox (2026-06)](../implimentation_plans/event-search-omnibox-2026-06.md)
 - [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
 - [Top Qualifiers (2026-04)](../implimentation_plans/top-qualifiers-2026-04.md)

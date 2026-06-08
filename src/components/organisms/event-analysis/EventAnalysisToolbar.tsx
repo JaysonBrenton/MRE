@@ -18,15 +18,12 @@ import TabNavigation, {
   type TabId,
 } from "@/components/organisms/event-analysis/TabNavigation"
 import EventAnalysisActionsMenu from "@/components/organisms/event-analysis/EventAnalysisActionsMenu"
-import type { AnalysisPrimarySubTabId } from "@/components/organisms/event-analysis/event-analysis-sub-tabs"
 import { useFitText } from "@/hooks/useFitText"
 
 export interface EventAnalysisToolbarProps {
   tabs: Tab[]
   activeTab: TabId
   onTabChange: (tabId: TabId) => void
-  analysisMenuSelectedId?: string
-  onAnalysisMenuDispatch?: (id: AnalysisPrimarySubTabId) => void
   /** Event name for the trailing welcome column. */
   eventName?: string | null
   /** Track name for the trailing welcome column (user host venue when set, else event track). */
@@ -138,8 +135,6 @@ export function EventAnalysisToolbarAboveEventDetailsStrip(props: EventAnalysisT
               onTabChange={props.onTabChange}
               embedded
               embeddedChrome="none"
-              analysisMenuSelectedId={props.analysisMenuSelectedId}
-              onAnalysisMenuDispatch={props.onAnalysisMenuDispatch}
               tabListTrailing={
                 <div className="flex items-stretch gap-2 pr-1">
                   <span className={tabStripTrailingDividerClass} aria-hidden />
@@ -173,8 +168,6 @@ export default function EventAnalysisToolbar({
   tabs,
   activeTab,
   onTabChange,
-  analysisMenuSelectedId,
-  onAnalysisMenuDispatch,
   eventName,
   trackName,
   titleEmphasis = "default",
@@ -205,8 +198,6 @@ export default function EventAnalysisToolbar({
           activeTab={activeTab}
           onTabChange={onTabChange}
           embedded
-          analysisMenuSelectedId={analysisMenuSelectedId}
-          onAnalysisMenuDispatch={onAnalysisMenuDispatch}
           tabListTrailing={<EventAnalysisActionsMenu tabStripTrigger />}
         />
       </div>

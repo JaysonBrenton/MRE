@@ -504,6 +504,27 @@ PYTHONUNBUFFERED=1
 
 ---
 
+### Admin UI overrides (planned)
+
+After the **Admin Ingestion Settings Console** ships (see
+[admin-ingestion-settings-console.md](../architecture/admin-ingestion-settings-console.md)),
+many ingestion variables below may also be set from `/admin/ingestion/settings`.
+Effective value precedence:
+
+1. Database override (`ingestion_settings` table)
+2. Environment variable (this document)
+3. Registry default
+   ([doc 33](../architecture/liverc-ingestion/33-ingestion-settings-registry-and-runtime-config.md))
+
+Settings with **apply mode: restart** remain env-only in Docker; the admin UI
+displays them read-only. Ops runbook:
+[admin-ingestion-settings-runbook.md](admin-ingestion-settings-runbook.md).
+
+**Status:** Planned — env vars remain authoritative until Phase 2 implementation
+merges.
+
+---
+
 ### UVICORN_RELOAD
 
 **Type:** Boolean (string)  
@@ -830,6 +851,97 @@ day from dominating latency.
 
 ```bash
 PRACTICE_DISCOVER_DAY_OVERVIEW_TIMEOUT_SECONDS=25
+```
+
+---
+
+### INGESTION_QUEUE_MAX_CONCURRENT
+
+**Type:** Number  
+**Required:** No  
+**Default:** `2`  
+**Environment:** Python ingestion service
+
+Maximum concurrent background ingestion jobs when queue mode is enabled. Also
+controls worker task count. Tunable from admin settings console when implemented
+(apply mode: runtime).
+
+**Example:**
+
+```bash
+INGESTION_QUEUE_MAX_CONCURRENT=2
+```
+
+---
+
+### INGESTION_QUEUE_JOB_TTL_SECONDS
+
+**Type:** Number (seconds)  
+**Required:** No  
+**Default:** `3600`  
+**Environment:** Python ingestion service
+
+Retention window for completed/failed in-memory job metadata before eviction.
+
+**Example:**
+
+```bash
+INGESTION_QUEUE_JOB_TTL_SECONDS=3600
+```
+
+---
+
+### INGESTION_ADMIN_TOKEN
+
+**Type:** String (secret)  
+**Required:** Yes in production (when admin settings API is implemented)  
+**Environment:** `mre-app` and `mre-liverc-ingestion-service`
+
+Shared secret for service-to-service calls to Python
+`GET/PATCH /api/v1/admin/settings`. Must never be sent to the browser. Rotate
+via `.env.docker` and restart both services.
+
+**Example:**
+
+```bash
+INGESTION_ADMIN_TOKEN=generate-a-long-random-string
+```
+
+---
+
+### INGESTION_SETTINGS_CACHE_TTL_SECONDS
+
+**Type:** Number (seconds)  
+**Required:** No  
+**Default:** `30`  
+**Environment:** Python ingestion service and Next.js (when resolver
+implemented)
+
+TTL for in-process cache of effective settings values after DB/env resolution.
+
+**Example:**
+
+```bash
+INGESTION_SETTINGS_CACHE_TTL_SECONDS=30
+```
+
+---
+
+### ADMIN_INGESTION_SETTINGS_WRITABLE
+
+**Type:** Boolean (`true` / `false`)  
+**Required:** No  
+**Default:** `true` in Docker Compose (development); set `false` in production
+until validated  
+**Environment:** `mre-app` only
+
+When `false`, the admin settings UI is read-only and
+`PATCH /api/v1/admin/ingestion/settings` returns 403.
+
+**Example:**
+
+```bash
+ADMIN_INGESTION_SETTINGS_WRITABLE=true
 ```
 
 ---
@@ -1264,6 +1376,8 @@ DATABASE_URL=postgresql://pacetracer:change-me@mre-postgres:5432/pacetracer?sche
 AUTH_SECRET=your-generated-secret-here-minimum-32-characters
 NODE_ENV=development
 APP_URL=http://localhost:3001
+INGESTION_ADMIN_TOKEN=dev-ingestion-admin-token-change-me
+ADMIN_INGESTION_SETTINGS_WRITABLE=true
 ```
 
 **Note:** AUTH_SECRET must be at least 32 characters. The build will fail if
@@ -1277,52 +1391,56 @@ See [Development](#development) section above for complete example.
 
 ## Variable Reference Table
 
-| Variable                                | Required | Default                                 | Group          | Security Sensitive |
-| --------------------------------------- | -------- | --------------------------------------- | -------------- | ------------------ |
-| `DATABASE_URL`                          | Yes      | None                                    | Database       | Yes                |
-| `POSTGRES_USER`                         | No       | `pacetracer`                            | Database       | No                 |
-| `POSTGRES_PASSWORD`                     | No       | `change-me`                             | Database       | Yes                |
-| `POSTGRES_DB`                           | No       | `pacetracer`                            | Database       | No                 |
-| `POSTGRES_PORT`                         | No       | `5432`                                  | Database       | No                 |
-| `NODE_ENV`                              | Yes      | `development`                           | Application    | No                 |
-| `PORT`                                  | No       | `3001`                                  | Application    | No                 |
-| `APP_PORT`                              | No       | `3001`                                  | Application    | No                 |
-| `APP_URL`                               | No       | `http://localhost:3001`                 | Application    | No                 |
-| `HOST`                                  | No       | `0.0.0.0`                               | Application    | No                 |
-| `NODE_OPTIONS`                          | No       | `--dns-result-order=ipv4first`          | Application    | No                 |
-| `NEXT_PUBLIC_ENABLE_PRACTICE_DAYS`      | No       | `true`                                  | Application    | No                 |
-| `CLICKHOUSE_URL`                        | No       | `http://mre-clickhouse:8123`            | Application    | No                 |
-| `TELEMETRY_UPLOAD_ROOT`                 | No       | `/data/telemetry`                       | Shared         | No                 |
-| `AUTH_SECRET`                           | Yes      | None (min 32 chars)                     | Authentication | Yes                |
-| `NEXTAUTH_SECRET`                       | No       | Falls back to `AUTH_SECRET`             | Authentication | Yes                |
-| `INGESTION_SERVICE_URL`                 | No       | `http://liverc-ingestion-service:8000`  | Ingestion      | No                 |
-| `INGESTION_PORT`                        | No       | `8000`                                  | Ingestion      | No                 |
-| `LOG_LEVEL`                             | No       | `INFO`                                  | Ingestion      | No                 |
-| `UVICORN_RELOAD`                        | No       | `false`                                 | Ingestion      | No                 |
-| `INGESTION_USE_QUEUE`                   | No       | `true`                                  | Ingestion      | No                 |
-| `UVICORN_WORKERS`                       | No       | `1`                                     | Ingestion      | No                 |
-| `SITE_POLICY_PATH`                      | No       | `/app/policies/site_policy/policy.json` | Ingestion      | No                 |
-| `TRACK_SYNC_METADATA_CONCURRENCY`       | No       | `6`                                     | Ingestion      | No                 |
-| `TRACK_SYNC_REPORT_RETENTION_DAYS`      | No       | `30`                                    | Ingestion      | No                 |
-| `MRE_SCRAPE_ENABLED`                    | No       | `true`                                  | Ingestion      | No                 |
-| `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` | No       | `false`                                 | Ingestion      | No                 |
-| `MRE_RECENT_EVENTS_DAYS`                | No       | `7`                                     | Ingestion      | No                 |
-| `MRE_RECENT_EVENTS_TRACKS`              | No       | `followed`                              | Ingestion      | No                 |
-| `MRE_RECENT_EVENTS_MAX_INGESTS`         | No       | `50`                                    | Ingestion      | No                 |
-| `MRE_RECENT_EVENTS_MIN_AGE_HOURS`       | No       | `12`                                    | Ingestion      | No                 |
-| `INGESTION_BUILD_TARGET`                | No       | `development`                           | Docker         | No                 |
-| `PERF_THRESHOLD_API`                    | No       | `300`                                   | Performance    | No                 |
-| `PERF_THRESHOLD_DB`                     | No       | `100`                                   | Performance    | No                 |
-| `PERF_THRESHOLD_EXTERNAL`               | No       | `500`                                   | Performance    | No                 |
-| `PYTHONUNBUFFERED`                      | No       | `1`                                     | Ingestion      | No                 |
-| `CLICKHOUSE_PORT`                       | No       | `8123`                                  | ClickHouse     | No                 |
-| `TELEMETRY_WORKER_ID`                   | No       | `telemetry-worker-1`                    | Telemetry      | No                 |
-| `TELEMETRY_WORKER_POLL_INTERVAL_SEC`    | No       | `2`                                     | Telemetry      | No                 |
-| `TELEMETRY_WORKER_CLICKHOUSE_HOST`      | No       | _empty_                                 | Telemetry      | No                 |
-| `CLICKHOUSE_HTTP_PORT`                  | No       | `8123`                                  | Telemetry      | No                 |
-| `CLICKHOUSE_USER`                       | No       | `default`                               | Telemetry      | No                 |
-| `CLICKHOUSE_PASSWORD`                   | No       | _empty_                                 | Telemetry      | Yes                |
-| `TZ`                                    | No       | `Australia/Sydney`                      | System         | No                 |
+| Variable                                | Required   | Default                                 | Group          | Security Sensitive |
+| --------------------------------------- | ---------- | --------------------------------------- | -------------- | ------------------ |
+| `DATABASE_URL`                          | Yes        | None                                    | Database       | Yes                |
+| `POSTGRES_USER`                         | No         | `pacetracer`                            | Database       | No                 |
+| `POSTGRES_PASSWORD`                     | No         | `change-me`                             | Database       | Yes                |
+| `POSTGRES_DB`                           | No         | `pacetracer`                            | Database       | No                 |
+| `POSTGRES_PORT`                         | No         | `5432`                                  | Database       | No                 |
+| `NODE_ENV`                              | Yes        | `development`                           | Application    | No                 |
+| `PORT`                                  | No         | `3001`                                  | Application    | No                 |
+| `APP_PORT`                              | No         | `3001`                                  | Application    | No                 |
+| `APP_URL`                               | No         | `http://localhost:3001`                 | Application    | No                 |
+| `HOST`                                  | No         | `0.0.0.0`                               | Application    | No                 |
+| `NODE_OPTIONS`                          | No         | `--dns-result-order=ipv4first`          | Application    | No                 |
+| `NEXT_PUBLIC_ENABLE_PRACTICE_DAYS`      | No         | `true`                                  | Application    | No                 |
+| `CLICKHOUSE_URL`                        | No         | `http://mre-clickhouse:8123`            | Application    | No                 |
+| `TELEMETRY_UPLOAD_ROOT`                 | No         | `/data/telemetry`                       | Shared         | No                 |
+| `AUTH_SECRET`                           | Yes        | None (min 32 chars)                     | Authentication | Yes                |
+| `NEXTAUTH_SECRET`                       | No         | Falls back to `AUTH_SECRET`             | Authentication | Yes                |
+| `INGESTION_SERVICE_URL`                 | No         | `http://liverc-ingestion-service:8000`  | Ingestion      | No                 |
+| `INGESTION_PORT`                        | No         | `8000`                                  | Ingestion      | No                 |
+| `LOG_LEVEL`                             | No         | `INFO`                                  | Ingestion      | No                 |
+| `UVICORN_RELOAD`                        | No         | `false`                                 | Ingestion      | No                 |
+| `INGESTION_USE_QUEUE`                   | No         | `true`                                  | Ingestion      | No                 |
+| `UVICORN_WORKERS`                       | No         | `1`                                     | Ingestion      | No                 |
+| `SITE_POLICY_PATH`                      | No         | `/app/policies/site_policy/policy.json` | Ingestion      | No                 |
+| `TRACK_SYNC_METADATA_CONCURRENCY`       | No         | `6`                                     | Ingestion      | No                 |
+| `TRACK_SYNC_REPORT_RETENTION_DAYS`      | No         | `30`                                    | Ingestion      | No                 |
+| `MRE_SCRAPE_ENABLED`                    | No         | `true`                                  | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_AUTO_INGEST_ENABLED` | No         | `false`                                 | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_DAYS`                | No         | `7`                                     | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_TRACKS`              | No         | `followed`                              | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_MAX_INGESTS`         | No         | `50`                                    | Ingestion      | No                 |
+| `MRE_RECENT_EVENTS_MIN_AGE_HOURS`       | No         | `12`                                    | Ingestion      | No                 |
+| `INGESTION_QUEUE_MAX_CONCURRENT`        | No         | `2`                                     | Ingestion      | No                 |
+| `INGESTION_QUEUE_JOB_TTL_SECONDS`       | No         | `3600`                                  | Ingestion      | No                 |
+| `INGESTION_ADMIN_TOKEN`                 | Yes (prod) | None                                    | Ingestion      | Yes                |
+| `INGESTION_SETTINGS_CACHE_TTL_SECONDS`  | No         | `30`                                    | Ingestion      | No                 |
+| `INGESTION_BUILD_TARGET`                | No         | `development`                           | Docker         | No                 |
+| `PERF_THRESHOLD_API`                    | No         | `300`                                   | Performance    | No                 |
+| `PERF_THRESHOLD_DB`                     | No         | `100`                                   | Performance    | No                 |
+| `PERF_THRESHOLD_EXTERNAL`               | No         | `500`                                   | Performance    | No                 |
+| `PYTHONUNBUFFERED`                      | No         | `1`                                     | Ingestion      | No                 |
+| `CLICKHOUSE_PORT`                       | No         | `8123`                                  | ClickHouse     | No                 |
+| `TELEMETRY_WORKER_ID`                   | No         | `telemetry-worker-1`                    | Telemetry      | No                 |
+| `TELEMETRY_WORKER_POLL_INTERVAL_SEC`    | No         | `2`                                     | Telemetry      | No                 |
+| `TELEMETRY_WORKER_CLICKHOUSE_HOST`      | No         | _empty_                                 | Telemetry      | No                 |
+| `CLICKHOUSE_HTTP_PORT`                  | No         | `8123`                                  | Telemetry      | No                 |
+| `CLICKHOUSE_USER`                       | No         | `default`                               | Telemetry      | No                 |
+| `CLICKHOUSE_PASSWORD`                   | No         | _empty_                                 | Telemetry      | Yes                |
+| `TZ`                                    | No         | `Australia/Sydney`                      | System         | No                 |
 
 ---
 

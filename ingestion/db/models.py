@@ -854,3 +854,13 @@ class EventDriverLink(Base):
         Index("event_driver_links_user_driver_link_id_idx", "user_driver_link_id"),
     )
 
+
+class IngestionSetting(Base):
+    """Runtime ingestion configuration overrides (mirrors Prisma IngestionSetting)."""
+    __tablename__ = "ingestion_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
+    updated_at = Column("updated_at", DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_by = Column("updated_by", String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+

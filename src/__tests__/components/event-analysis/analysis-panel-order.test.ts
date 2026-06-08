@@ -19,7 +19,6 @@ describe("normalizePanelOrder", () => {
       "event-level-analysis-col-4",
       "event-level-analysis-col-5",
       "event-level-analysis-col-6",
-      "event-level-analysis-col-7",
       "event-level-analysis-col-8",
     ])
   })
@@ -32,7 +31,6 @@ describe("normalizePanelOrder", () => {
       "event-level-analysis-col-3",
       "event-level-analysis-col-5",
       "event-level-analysis-col-6",
-      "event-level-analysis-col-7",
       "event-level-analysis-col-8",
     ])
   })

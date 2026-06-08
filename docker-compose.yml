@@ -65,6 +65,8 @@ services:
       APP_URL: ${APP_URL:-http://localhost:3001}
       # Ingestion service URL (internal Docker network)
       INGESTION_SERVICE_URL: ${INGESTION_SERVICE_URL:-http://liverc-ingestion-service:8000}
+      INGESTION_ADMIN_TOKEN: ${INGESTION_ADMIN_TOKEN:-dev-ingestion-admin-token-change-me}
+      ADMIN_INGESTION_SETTINGS_WRITABLE: ${ADMIN_INGESTION_SETTINGS_WRITABLE:-true}
       # Telemetry raw uploads (shared with telemetry-worker; stage 1)
       TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
       # Feature flags (NEXT_PUBLIC_ prefix required for client-side access)
@@ -170,6 +172,7 @@ services:
       MRE_RECENT_EVENTS_MAX_INGESTS: ${MRE_RECENT_EVENTS_MAX_INGESTS:-50}
       MRE_RECENT_EVENTS_MIN_AGE_HOURS: ${MRE_RECENT_EVENTS_MIN_AGE_HOURS:-12}
       SITE_POLICY_PATH: ${SITE_POLICY_PATH:-/app/policies/site_policy/policy.json}
+      INGESTION_ADMIN_TOKEN: ${INGESTION_ADMIN_TOKEN:-dev-ingestion-admin-token-change-me}
       TELEMETRY_UPLOAD_ROOT: ${TELEMETRY_UPLOAD_ROOT:-/data/telemetry}
     ports:
       - "${INGESTION_PORT:-8000}:8000"

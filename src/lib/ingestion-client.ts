@@ -481,7 +481,7 @@ export class IngestionClient {
     startDate?: string,
     endDate?: string
   ): Promise<DiscoveredEvent[]> {
-    assertScrapingEnabled()
+    await assertScrapingEnabled()
 
     // Check circuit breaker - fail fast if circuit is open
     if (this.circuitBreaker.isOpen()) {
@@ -619,7 +619,7 @@ export class IngestionClient {
     trackSlug: string,
     sourceEventId: string
   ): Promise<EntryListResponse["data"]> {
-    assertScrapingEnabled()
+    await assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/entry-list`
 
     // Use AbortController for timeout (2 minutes for entry list fetch)
@@ -708,7 +708,7 @@ export class IngestionClient {
     depth: "laps_full" | "none" = "laps_full",
     importedByUserId?: string
   ): Promise<IngestEventResponse | QueuedIngestionResponse> {
-    assertScrapingEnabled()
+    await assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/${eventId}/ingest`
     const body: Record<string, unknown> = { depth }
     if (importedByUserId) {
@@ -723,7 +723,7 @@ export class IngestionClient {
     depth: "laps_full" | "none" = "laps_full",
     importedByUserId?: string
   ): Promise<IngestEventResponse | QueuedIngestionResponse> {
-    assertScrapingEnabled()
+    await assertScrapingEnabled()
     const url = `${this.baseUrl}/api/v1/events/ingest`
     const body: Record<string, unknown> = {
       source_event_id: sourceEventId,

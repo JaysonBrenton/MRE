@@ -17,6 +17,7 @@ from typing import Optional
 import httpx
 
 from ingestion.common.logging import get_logger
+from ingestion.common.settings import get_float, get_int
 from ingestion.ingestion.errors import ConnectorHTTPError
 from ingestion.common.site_policy import SitePolicy
 
@@ -25,16 +26,16 @@ logger = get_logger(__name__)
 # User-Agent per specification
 USER_AGENT = "MRE-IngestionBot/1.0 (contact: admin@domain.com)"
 
-# Timeout configuration per specification
-TIMEOUT_CONFIG = httpx.Timeout(
-    connect=5.0,  # 5 seconds
-    read=20.0,    # 20 seconds
-    write=5.0,    # 5 seconds
-    pool=5.0,     # 5 seconds
-)
 
-# Total request hard cap: 30 seconds
-MAX_REQUEST_TIME = 30.0
+def _build_timeout_config() -> httpx.Timeout:
+    connect = get_float("HTTPX_CONNECT_TIMEOUT_SECONDS")
+    read = get_float("HTTPX_READ_TIMEOUT_SECONDS")
+    return httpx.Timeout(
+        connect=connect,
+        read=read,
+        write=connect,
+        pool=connect,
+    )
 
 
 class HTTPXClient:
@@ -56,7 +57,7 @@ class HTTPXClient:
     async def __aenter__(self):
         """Async context manager entry."""
         self._client = httpx.AsyncClient(
-            timeout=TIMEOUT_CONFIG,
+            timeout=_build_timeout_config(),
             headers={
                 "User-Agent": USER_AGENT,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -101,7 +102,7 @@ class HTTPXClient:
     async def get(
         self,
         url: str,
-        max_retries: int = 3,
+        max_retries: Optional[int] = None,
         base_delay: float = 0.5,
     ) -> httpx.Response:
         """
@@ -120,6 +121,9 @@ class HTTPXClient:
         """
         if not self._client:
             raise RuntimeError("HTTPXClient must be used as async context manager")
+
+        if max_retries is None:
+            max_retries = get_int("HTTPX_MAX_RETRIES")
         
         last_error: Optional[Exception] = None
         last_status: Optional[int] = None

@@ -152,18 +152,9 @@ class IngestionPipeline:
     (``_process_races_parallel``) while DB writes stay on the async thread's session.
     """
 
-    # Race fetch concurrency - adaptive, starts conservative and adjusts based on performance
-    # Initial value: 8 (conservative to avoid rate limiting)
-    # Will increase if network is fast and no errors, decrease if rate limited
-    RACE_FETCH_CONCURRENCY = 8
-    # Minimum concurrency (safety floor)
+    # Adaptive concurrency bounds (not admin-tunable)
     MIN_CONCURRENCY = 4
-    # Maximum concurrency (safety ceiling)
     MAX_CONCURRENCY = 16
-    # Inactivity timeout - only triggers if no progress is made for this duration
-    INACTIVITY_TIMEOUT_SECONDS = 5 * 60  # 5 minutes of inactivity
-    # Maximum total duration - safety limit to prevent runaway processes
-    MAX_TOTAL_DURATION_SECONDS = 60 * 60  # 1 hour maximum total duration
     # Percentile thresholds for adaptive concurrency adjustments
     CONCURRENCY_INCREASE_THRESHOLD_SECONDS = 2.5
     CONCURRENCY_DECREASE_THRESHOLD_SECONDS = 8.0
@@ -177,10 +168,15 @@ class IngestionPipeline:
             ingestion_job_id: When set (queued ingest worker), pipeline stages are mirrored to
                 the in-memory job record for GET /ingestion/jobs/{id} polling.
         """
+        from ingestion.common.settings import get_int
+
         self.connector = LiveRCConnector()
         self._ingestion_job_id = ingestion_job_id
         self._current_stage: str = "idle"
         self._last_activity_time: Optional[float] = None
+        self.race_fetch_concurrency = get_int("RACE_FETCH_CONCURRENCY")
+        self.inactivity_timeout_seconds = get_int("INACTIVITY_TIMEOUT_SECONDS")
+        self.max_total_duration_seconds = get_int("MAX_TOTAL_DURATION_SECONDS")
         # Adaptive concurrency tracking
         self._observed_latencies: List[float] = []  # Track last N fetch latencies
         self._rate_limit_errors: int = 0  # Count of 429 errors
@@ -270,14 +266,14 @@ class IngestionPipeline:
                 elapsed_total = current_time - start_time
                 
                 # Check maximum total duration (safety limit)
-                if elapsed_total > self.MAX_TOTAL_DURATION_SECONDS:
+                if elapsed_total > self.max_total_duration_seconds:
                     metrics.record_lock_timeout(str(event_id), self._current_stage)
                     logger.error(
                         "ingestion_max_duration_exceeded",
                         event_id=str(event_id),
                         stage=self._current_stage,
                         total_duration_seconds=elapsed_total,
-                        max_duration_seconds=self.MAX_TOTAL_DURATION_SECONDS,
+                        max_duration_seconds=self.max_total_duration_seconds,
                     )
                     if ingestion_timer:
                         ingestion_timer.finish("timeout")
@@ -293,7 +289,7 @@ class IngestionPipeline:
                     continue
                 
                 inactivity_duration = current_time - last_activity
-                if inactivity_duration > self.INACTIVITY_TIMEOUT_SECONDS:
+                if inactivity_duration > self.inactivity_timeout_seconds:
                     metrics.record_lock_timeout(str(event_id), self._current_stage)
                     logger.error(
                         "ingestion_inactivity_timeout",
@@ -301,7 +297,7 @@ class IngestionPipeline:
                         stage=self._current_stage,
                         inactivity_seconds=inactivity_duration,
                         total_duration_seconds=elapsed_total,
-                        inactivity_timeout_seconds=self.INACTIVITY_TIMEOUT_SECONDS,
+                        inactivity_timeout_seconds=self.inactivity_timeout_seconds,
                     )
                     if ingestion_timer:
                         ingestion_timer.finish("timeout")
@@ -492,15 +488,15 @@ class IngestionPipeline:
         # Check for rate limiting
         if self._rate_limit_errors > 0:
             # Rate limited - decrease concurrency aggressively
-            old_concurrency = self.RACE_FETCH_CONCURRENCY
-            self.RACE_FETCH_CONCURRENCY = max(
+            old_concurrency = self.race_fetch_concurrency
+            self.race_fetch_concurrency = max(
                 self.MIN_CONCURRENCY,
-                self.RACE_FETCH_CONCURRENCY - 2
+                self.race_fetch_concurrency - 2
             )
             logger.info(
                 "concurrency_decreased_due_to_rate_limit",
                 old_concurrency=old_concurrency,
-                new_concurrency=self.RACE_FETCH_CONCURRENCY,
+                new_concurrency=self.race_fetch_concurrency,
                 rate_limit_errors=self._rate_limit_errors,
             )
             # Reset rate limit counter after adjustment
@@ -508,35 +504,35 @@ class IngestionPipeline:
             self._observed_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
         elif (
             p75_latency < self.CONCURRENCY_INCREASE_THRESHOLD_SECONDS
-            and self.RACE_FETCH_CONCURRENCY < self.MAX_CONCURRENCY
+            and self.race_fetch_concurrency < self.MAX_CONCURRENCY
         ):
-            old_concurrency = self.RACE_FETCH_CONCURRENCY
-            self.RACE_FETCH_CONCURRENCY = min(
+            old_concurrency = self.race_fetch_concurrency
+            self.race_fetch_concurrency = min(
                 self.MAX_CONCURRENCY,
-                self.RACE_FETCH_CONCURRENCY + 1
+                self.race_fetch_concurrency + 1
             )
-            if old_concurrency != self.RACE_FETCH_CONCURRENCY:
+            if old_concurrency != self.race_fetch_concurrency:
                 logger.info(
                     "concurrency_increased",
                     old_concurrency=old_concurrency,
-                    new_concurrency=self.RACE_FETCH_CONCURRENCY,
+                    new_concurrency=self.race_fetch_concurrency,
                     p75_latency=p75_latency,
                 )
                 self._observed_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
         elif (
             p90_latency > self.CONCURRENCY_DECREASE_THRESHOLD_SECONDS
-            and self.RACE_FETCH_CONCURRENCY > self.MIN_CONCURRENCY
+            and self.race_fetch_concurrency > self.MIN_CONCURRENCY
         ):
-            old_concurrency = self.RACE_FETCH_CONCURRENCY
-            self.RACE_FETCH_CONCURRENCY = max(
+            old_concurrency = self.race_fetch_concurrency
+            self.race_fetch_concurrency = max(
                 self.MIN_CONCURRENCY,
-                self.RACE_FETCH_CONCURRENCY - 1
+                self.race_fetch_concurrency - 1
             )
-            if old_concurrency != self.RACE_FETCH_CONCURRENCY:
+            if old_concurrency != self.race_fetch_concurrency:
                 logger.info(
                     "concurrency_decreased_due_to_latency",
                     old_concurrency=old_concurrency,
-                    new_concurrency=self.RACE_FETCH_CONCURRENCY,
+                    new_concurrency=self.race_fetch_concurrency,
                     p90_latency=p90_latency,
                 )
                 self._observed_latencies = self._observed_latencies[-self._concurrency_adjustment_window:]
@@ -1202,7 +1198,7 @@ class IngestionPipeline:
             batch_index = 0
             while batch_index < total_races:
                 self._set_stage("fetch_race_pages", event_id)
-                batch_size = max(1, self.RACE_FETCH_CONCURRENCY)
+                batch_size = max(1, self.race_fetch_concurrency)
                 batch = race_summaries[batch_index:batch_index + batch_size]
                 batch_index += len(batch)
 

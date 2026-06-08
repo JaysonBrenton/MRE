@@ -31,17 +31,17 @@ Screenshots illustrating combined chrome:
 
 Listed top → bottom (`navigationRailConfig.tsx` canonical order):
 
-| Label                  | Route / Target                                   | Notes                                                                                                                                   |
-| ---------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **My Event Analysis**  | `/eventAnalysis`                                 | Resets stacked tab Redux slice to Overview when reused.                                                                                 |
-| **Global Search**      | `/search`                                        | Previously `/event-search`.                                                                                                             |
-| **My Telemetry**       | `/eventAnalysis/my-telemetry`                    | Telemetry datasets + imports.                                                                                                           |
-| **My Car Profiles**    | `/eventAnalysis/car-profiles`                    | Car metadata / setups.                                                                                                                  |
-| **My Driver Profiles** | `/eventAnalysis/driver-profiles`                 | Persona overlays.                                                                                                                       |
-| **My Engineer**        | `/eventAnalysis/my-engineer`                     | Intelligence cockpit (still evolving).                                                                                                  |
-| **My Club**            | `/under-development?from=/eventAnalysis/my-club` | Top-level link still placeholder; expandable submenu ships **Track Maps** (live) plus Track Leaderboard / Club Highlights placeholders. |
-| **My Team**            | `/under-development?from=/eventAnalysis/my-team` | Placeholder until team dashboards GA.                                                                                                   |
-| **MRE Administration** | `/admin`                                         | Visible for admins — console metrics + ingestion triggers.                                                                              |
+| Label                  | Route / Target                                   | Notes                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **My Event Analysis**  | `/eventAnalysis`                                 | Resets stacked tab Redux slice to Overview when reused.                                                                                                                            |
+| **Global Search**      | `/search`                                        | Previously `/event-search`.                                                                                                                                                        |
+| **My Telemetry**       | `/eventAnalysis/my-telemetry`                    | Telemetry datasets + imports.                                                                                                                                                      |
+| **My Car Profiles**    | `/eventAnalysis/car-profiles`                    | Car metadata / setups.                                                                                                                                                             |
+| **My Driver Profiles** | `/eventAnalysis/driver-profiles`                 | Persona overlays.                                                                                                                                                                  |
+| **My Engineer**        | `/eventAnalysis/my-engineer`                     | Intelligence cockpit (still evolving).                                                                                                                                             |
+| **My Club**            | `/under-development?from=/eventAnalysis/my-club` | Top-level link still placeholder; expandable submenu ships **Track Maps** (live) plus Track Leaderboard / Club Highlights placeholders.                                            |
+| **My Team**            | `/under-development?from=/eventAnalysis/my-team` | Placeholder until team dashboards GA.                                                                                                                                              |
+| **MRE Administration** | `/admin`                                         | Visible for admins — console metrics, [ingestion controls](/admin/ingestion), and [ingestion settings](/admin/ingestion/settings). See [admin guide](admin-ingestion-settings.md). |
 
 **Guides** near the footer toggles the stack linking to `/guides/*` SPA pages
 mirroring Markdown user docs.
@@ -144,5 +144,5 @@ Escape closes overlays + palette.
 
 - [Getting started](getting-started.md)
 - [My Event Analysis](dashboard.md)
-- [Global Search](event-search.md)
+- [Global Search](global-search.md)
 - [Driver Features](driver-features.md)

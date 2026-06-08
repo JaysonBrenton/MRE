@@ -29,17 +29,19 @@ coordinated move and link update across `docs/`.
 
 ## Active plans
 
-| Plan                                                                                             | Status  | Architecture                                                                                                        |
-| ------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------- |
-| [Observability platform remediation (Jun 2026)](observability-platform-remediation-2026-06.md)   | Planned | [observability-platform.md](../architecture/observability-platform.md)                                              |
-| [Ingestion advisory lock remediation (Jun 2026)](ingestion-advisory-lock-remediation-2026-06.md) | Planned | [32-ingestion-advisory-lock-lifecycle.md](../architecture/liverc-ingestion/32-ingestion-advisory-lock-lifecycle.md) |
-| [Recent Events Auto-Ingest (May 2026)](recent-events-auto-ingest-2026-05.md)                     | Planned | [31-recent-events-auto-ingest.md](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md)                 |
+| Plan                                                                                             | Status      | Architecture                                                                                                        |
+| ------------------------------------------------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| [Admin Ingestion Settings Console (Jun 2026)](admin-ingestion-settings-console-2026-06.md)       | Implemented | [admin-ingestion-settings-console.md](../architecture/admin-ingestion-settings-console.md)                          |
+| [Observability platform remediation (Jun 2026)](observability-platform-remediation-2026-06.md)   | Planned     | [observability-platform.md](../architecture/observability-platform.md)                                              |
+| [Ingestion advisory lock remediation (Jun 2026)](ingestion-advisory-lock-remediation-2026-06.md) | Planned     | [32-ingestion-advisory-lock-lifecycle.md](../architecture/liverc-ingestion/32-ingestion-advisory-lock-lifecycle.md) |
+| [Recent Events Auto-Ingest (May 2026)](recent-events-auto-ingest-2026-05.md)                     | Planned     | [31-recent-events-auto-ingest.md](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md)                 |
 
 Operations runbooks:
+[admin-ingestion-settings-runbook.md](../operations/admin-ingestion-settings-runbook.md),
 [observability-platform-setup-runbook.md](../operations/observability-platform-setup-runbook.md),
 [observability-alerting-runbook.md](../operations/observability-alerting-runbook.md),
 [recent-events-auto-ingest-runbook.md](../operations/recent-events-auto-ingest-runbook.md).
 
-ADRs:
+ADRs: [ADR-20260608](../adr/ADR-20260608-admin-ingestion-settings-console.md),
 [ADR-20260607](../adr/ADR-20260607-adopt-opentelemetry-and-observability-platform.md),
 [ADR-20260531](../adr/ADR-20260531-scheduled-recent-events-auto-ingest.md).

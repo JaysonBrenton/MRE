@@ -16,3 +16,21 @@ def test_site_policy_kill_switch(monkeypatch):
     policy = SitePolicy()
     with pytest.raises(ScrapingDisabledError):
         policy.ensure_enabled("test")
+
+
+def test_site_policy_applies_db_overrides(monkeypatch):
+    monkeypatch.delenv("site_policy_overrides", raising=False)
+
+    class FakeEffective:
+        effective_value = '{"hosts":[{"pattern":"live.liverc.com","crawlDelaySeconds":2.0}]}'
+
+    def fake_get_effective(key, mask_secrets=False):
+        assert key == "site_policy_overrides"
+        return FakeEffective()
+
+    monkeypatch.setattr("ingestion.common.settings.get_effective", fake_get_effective)
+    SitePolicy.reset_shared()
+    policy = SitePolicy()
+    rule = policy._match_rule("live.liverc.com")
+    assert rule.crawl_delay == 2.0
+    SitePolicy.reset_shared()

@@ -76,6 +76,8 @@ Only users with the admin role may:
 - test connector browser behaviour
 - manage tracks and followed/unfollowed state
 - run CLI ingestion tools
+- view and update ingestion runtime settings at `/admin/ingestion/settings`
+  ([admin-ingestion-settings-console.md](../../admin-ingestion-settings-console.md))
 
 ### 2.2 Non-Admin Restrictions
 
@@ -86,6 +88,13 @@ Non-admin users may only:
 - view processed race and lap data
 
 They may NOT request ingestion, even for their own races.
+
+### 2.3 Ingestion settings API
+
+Admin settings routes (`GET/PATCH /api/v1/admin/ingestion/settings`,
+`POST .../settings/reload`) require admin session. Python internal routes
+require `X-Ingestion-Admin-Token`; token must not be exposed to browsers. See
+[admin-ingestion-settings-api.md](../../api/admin-ingestion-settings-api.md).
 
 ---
 
