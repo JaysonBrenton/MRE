@@ -480,3 +480,81 @@ export function defaultDriverLineColor(driverId: string, driverIds: string[]): s
   const paletteIndex = idx >= 0 ? idx : 0
   return DRIVER_PALETTE[paletteIndex % DRIVER_PALETTE.length]
 }
+
+/** Seconds between adjacent position rank lanes on the shared lap-time Y axis (LiveRC-style). */
+export const POSITION_LANE_SPACING_SECONDS = 2
+
+/** Clear band between the padded lap-time ceiling and the worst-position lane. */
+export const POSITION_LANE_BUFFER_SECONDS = 6
+
+/** Extra headroom above the P1 lane when extending the Y domain. */
+export const POSITION_LANE_TOP_PADDING_SECONDS = 1
+
+export interface PositionLaneLayout {
+  maxPosition: number
+  laneSpacingSeconds: number
+  /** Lap-time seconds for the worst rank lane (maxPosition). */
+  positionBandBaseSeconds: number
+}
+
+export function maxPositionRankFromDrivers(drivers: DriverLapTrendSeries[]): number {
+  let maxPosition = 1
+  for (const driver of drivers) {
+    for (const lap of driver.laps) {
+      const p = lap.positionOnLap
+      if (typeof p === "number" && p >= 1 && Number.isFinite(p)) {
+        maxPosition = Math.max(maxPosition, Math.ceil(p))
+      }
+    }
+  }
+  return maxPosition
+}
+
+export function computeLapTimeYDomain(
+  minLapSeconds: number,
+  maxLapSeconds: number,
+  paddingFraction = 0.1
+): [number, number] {
+  const padding = (maxLapSeconds - minLapSeconds) * paddingFraction || 1
+  return [Math.max(0, minLapSeconds - padding), maxLapSeconds + padding]
+}
+
+/**
+ * Maps discrete race positions into fixed horizontal lanes above lap times on the shared
+ * lap-time Y scale (same approach as LiveRC lap graphs).
+ */
+export function computePositionLaneLayout(
+  lapDomainMaxSeconds: number,
+  maxPosition: number,
+  options?: { laneSpacingSeconds?: number; bufferSeconds?: number }
+): PositionLaneLayout {
+  const laneSpacingSeconds = options?.laneSpacingSeconds ?? POSITION_LANE_SPACING_SECONDS
+  const bufferSeconds = options?.bufferSeconds ?? POSITION_LANE_BUFFER_SECONDS
+  const ranks = Math.max(1, maxPosition)
+  return {
+    maxPosition: ranks,
+    laneSpacingSeconds,
+    positionBandBaseSeconds: lapDomainMaxSeconds + bufferSeconds,
+  }
+}
+
+/** Y-axis value (seconds) for a position rank within the reserved upper band. */
+export function positionLaneYSeconds(positionOnLap: number, layout: PositionLaneLayout): number {
+  const rank = Math.max(1, Math.round(positionOnLap))
+  const cappedRank = Math.min(rank, layout.maxPosition)
+  return (
+    layout.positionBandBaseSeconds + (layout.maxPosition - cappedRank) * layout.laneSpacingSeconds
+  )
+}
+
+/** Extends lap-time Y domain upward to include position lanes (P1 highest). */
+export function yDomainWithPositionLanes(
+  lapDomain: [number, number],
+  maxPosition: number,
+  options?: { laneSpacingSeconds?: number; bufferSeconds?: number; topPaddingSeconds?: number }
+): [number, number] {
+  const layout = computePositionLaneLayout(lapDomain[1], maxPosition, options)
+  const topPadding = options?.topPaddingSeconds ?? POSITION_LANE_TOP_PADDING_SECONDS
+  const topSeconds = positionLaneYSeconds(1, layout) + topPadding
+  return [lapDomain[0], Math.max(lapDomain[1], topSeconds)]
+}

@@ -194,6 +194,18 @@ diagram, **Drivers who progressed from earlier rounds** tables), how it nests
 inside `OverviewTab`, and how Bump-Up inference / driver-progression matrices
 relate engineering-wise.
 
+### [Lap trend pace heat line](architecture/lap-trend-pace-heat-line.md)
+
+**Status:** Planned  
+**Last Updated:** 2026-06-10
+
+Normative design for **Pace heat line** on `LapByLapTrendChart`: when one driver
+is selected, optional Display toggle colors the lap trace by delta to personal
+best (green through red). Implementation:
+[lap-trend-pace-heat-line-2026-06.md](implimentation_plans/lap-trend-pace-heat-line-2026-06.md).
+User guide:
+[event-analysis.md](user-guides/event-analysis.md#pace-heat-line-single-driver).
+
 ---
 
 ## API Documentation

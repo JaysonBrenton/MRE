@@ -1,7 +1,7 @@
 ---
 created: 2026-04-05
 creator: Documentation
-lastModified: 2026-04-19
+lastModified: 2026-06-10
 description:
   Index of exploratory product and UX ideas not committed to the roadmap
 purpose:
@@ -27,8 +27,9 @@ the normative spec is
 
 ## Ideas
 
-| Idea                                                                    | Summary                                                                                                                                            |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Graph-based race replay](graph-based-race-replay.md)                   | Playback-style UX on top of lap trends (times, positions, gaps)—not video or track map.                                                            |
-| [Top qualifiers & seeding rounds](top-qualifiers-and-seeding-rounds.md) | Define and surface top qualifying outcomes and which sessions seed later rounds. **Spec:** [top-qualifiers.md](../architecture/top-qualifiers.md). |
-| [Event series (linking events)](event-series-linking.md)                | Let users group multiple events into a named series (e.g. multi-round club championships) for navigation and future cross-event context.           |
+| Idea                                                                        | Summary                                                                                                                                                                               |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Graph-based race replay](graph-based-race-replay.md)                       | Playback-style UX on top of lap trends (times, positions, gaps)—not video or track map.                                                                                               |
+| [Top qualifiers & seeding rounds](top-qualifiers-and-seeding-rounds.md)     | Define and surface top qualifying outcomes and which sessions seed later rounds. **Spec:** [top-qualifiers.md](../architecture/top-qualifiers.md).                                    |
+| [Event series (linking events)](event-series-linking.md)                    | Let users group multiple events into a named series (e.g. multi-round club championships) for navigation and future cross-event context.                                              |
+| [Lap trend pace analysis follow-ons](lap-trend-pace-analysis-follow-ons.md) | Pace heatmap matrix, session fade chips, clean-pace trend, annotation handoff, and other ideas building on the [pace heat line](../architecture/lap-trend-pace-heat-line.md) helpers. |

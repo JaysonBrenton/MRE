@@ -123,7 +123,7 @@ export default function EventSearchForm({
   onApplyFilters,
   onClearFilters,
   canSearchWithoutTrack = false,
-  isGlobalBrowse = false,
+  isGlobalBrowse: _isGlobalBrowse = false,
   onOmniboxQueryChange,
 }: EventSearchFormProps) {
   const practiceDaysEnabled = isPracticeDaysEnabled()
@@ -223,14 +223,6 @@ export default function EventSearchForm({
       ? dateFilterSummaryFromDraft(filterDraft, formatCustomRangeSummary, DATE_RANGE_PRESETS)
       : dateFilterSummary
 
-  const trackSummary =
-    selectedTrack?.trackName ??
-    (isGlobalBrowse || canSearchWithoutTrack ? "all tracks (database)" : "none selected")
-  const compactSummary =
-    searchMode === "events"
-      ? `Track: ${trackSummary} · ${dateFilterSummary}`
-      : `Track: ${trackSummary} · ${dateFilterSummary}`
-
   /** Non-default filters surfaced as a badge on the Filters button. */
   const activeFilterCount =
     (searchMode === "events" && dateRangePreset !== "none" ? 1 : 0) +
@@ -239,6 +231,8 @@ export default function EventSearchForm({
     (searchMode === "events" && includeEverlaps ? 1 : 0) +
     (searchMode === "events" && !includeReady ? 1 : 0) +
     (searchMode === "events" && !includeScheduled ? 1 : 0)
+
+  const isSearchBusy = isSearchingInFlight || isLoading
 
   return (
     <>
@@ -302,14 +296,20 @@ export default function EventSearchForm({
                   type="submit"
                   id="event-search-run-trigger"
                   variant="primary"
-                  disabled={
-                    (!canSearchWithoutTrack && !selectedTrack) || isSearchingInFlight || isLoading
-                  }
-                  className="h-11 w-[9rem] min-w-[9rem] shrink-0 justify-center px-3"
-                  aria-label="Run event search"
+                  disabled={(!canSearchWithoutTrack && !selectedTrack) || isSearchBusy}
+                  className="h-11 w-[10.25rem] min-w-[10.25rem] shrink-0 justify-center gap-2 px-3"
+                  aria-label={isSearchBusy ? "Searching" : "Run event search"}
+                  aria-busy={isSearchBusy}
                 >
-                  {isSearchingInFlight || isLoading ? (
-                    "Running..."
+                  {isSearchBusy ? (
+                    <>
+                      <Search
+                        className="h-4 w-4 shrink-0 animate-spin"
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                      <span aria-live="polite">Searching</span>
+                    </>
                   ) : (
                     <Search className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
                   )}
@@ -327,10 +327,6 @@ export default function EventSearchForm({
                 </Button>
               </div>
             </div>
-
-            <p className="text-xs text-[var(--token-text-secondary)]" aria-live="polite">
-              {compactSummary}
-            </p>
 
             {errors?.track && (
               <p id={trackErrorId} className="text-sm text-[var(--token-error-text)]" role="alert">

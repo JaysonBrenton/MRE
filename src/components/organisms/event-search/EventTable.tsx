@@ -196,7 +196,7 @@ export default function EventTable({
     return sortDirection === "asc" ? comparison : -comparison
   })
 
-  // Parent EventSearchContainer shows a single "Searching" banner; avoid duplicate status here.
+  // EventSearchForm search button shows in-flight status; avoid duplicate loading UI here.
   if (!hasSearched) return null
   if (events.length === 0 && (isLoading || isCheckingLiveRC)) {
     return null

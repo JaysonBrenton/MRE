@@ -6,6 +6,8 @@ import {
   alignedEventLapX,
   buildAggregateTooltipPayload,
   buildCrosshairTooltipPayload,
+  computeLapTimeYDomain,
+  computePositionLaneLayout,
   computeSessionBands,
   computeSessionDividers,
   computeSessionLayout,
@@ -14,7 +16,10 @@ import {
   filterLapTrendDriversByRaceIds,
   lapChartXValue,
   lapForDriverAtChartX,
+  maxPositionRankFromDrivers,
+  positionLaneYSeconds,
   sessionBandsFromLayout,
+  yDomainWithPositionLanes,
 } from "@/core/events/lap-by-lap-trend-chart-model"
 import type { DriverLapTrendSeries } from "@/core/events/get-lap-data"
 import { describe, expect, it } from "vitest"
@@ -369,5 +374,60 @@ describe("defaultDriverLineColor", () => {
       defaultDriverLineColor("alpha", ["bravo", "alpha", "charlie"])
     )
     expect(defaultDriverLineColor("alpha", ids)).not.toBe(defaultDriverLineColor("bravo", ids))
+  })
+})
+
+describe("position lane layout (LiveRC-style)", () => {
+  it("maps ranks to ascending seconds above the lap-time band", () => {
+    const lapDomain = computeLapTimeYDomain(32.1, 38.4)
+    const layout = computePositionLaneLayout(lapDomain[1], 4)
+    expect(positionLaneYSeconds(4, layout)).toBeCloseTo(lapDomain[1] + 6, 5)
+    expect(positionLaneYSeconds(1, layout)).toBeCloseTo(lapDomain[1] + 12, 5)
+    expect(positionLaneYSeconds(1, layout)).toBeGreaterThan(positionLaneYSeconds(2, layout))
+    expect(positionLaneYSeconds(2, layout)).toBeGreaterThan(positionLaneYSeconds(4, layout))
+  })
+
+  it("extends Y domain to include the P1 lane", () => {
+    const lapDomain = computeLapTimeYDomain(32.0, 38.0)
+    const extended = yDomainWithPositionLanes(lapDomain, 4)
+    expect(extended[0]).toBe(lapDomain[0])
+    expect(extended[1]).toBeGreaterThan(lapDomain[1])
+    expect(extended[1]).toBeGreaterThanOrEqual(
+      positionLaneYSeconds(1, computePositionLaneLayout(lapDomain[1], 4))
+    )
+  })
+
+  it("reads max position rank from driver laps", () => {
+    const drivers = [
+      driverSeries("a", [
+        {
+          lapIndex: 1,
+          raceId: "r1",
+          raceLabel: "Q1",
+          lapNumber: 1,
+          lapTimeSeconds: 32.0,
+          positionOnLap: 3,
+        },
+        {
+          lapIndex: 2,
+          raceId: "r1",
+          raceLabel: "Q1",
+          lapNumber: 2,
+          lapTimeSeconds: 32.1,
+          positionOnLap: 1,
+        },
+      ]),
+      driverSeries("b", [
+        {
+          lapIndex: 1,
+          raceId: "r1",
+          raceLabel: "Q1",
+          lapNumber: 1,
+          lapTimeSeconds: 32.2,
+          positionOnLap: 5,
+        },
+      ]),
+    ]
+    expect(maxPositionRankFromDrivers(drivers)).toBe(5)
   })
 })

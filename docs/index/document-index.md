@@ -14,7 +14,7 @@ relatedFiles:
 
 # MRE Documentation Index
 
-**Last Updated:** 2026-06-08  
+**Last Updated:** 2026-06-10  
 **Purpose:** Complete listing of all documentation files in the MRE repository.
 
 This index is organized by directory to mirror the on-disk layout under `docs/`
@@ -97,6 +97,9 @@ actual file tree. For a curated, description-rich entry point, see
   pages and APIs.
 - [Event Analysis — Mains Ladder](../architecture/event-analysis-mains-ladder.md)
   — Mains Ladder bracket UX, `OverviewTab` wiring, progressed-driver tables.
+- [Lap Trend Pace Heat Line](../architecture/lap-trend-pace-heat-line.md) —
+  Pace-encoded lap line coloring on `LapByLapTrendChart` (single-driver mode).
+  **Status:** planned.
 - [Event Overview: Class Winners & LiveRC Overall Final Ranking](../architecture/event-overview-class-winners-liverc-overall-final-ranking.md)
 - [Event Host/Track User Override](../architecture/event-host-track-user-override.md)
 - [Event Search: Include Practice Days Design](../architecture/event-search-include-practice-days-design.md)
@@ -422,6 +425,8 @@ These guides mirror the in-app `/guides/*` routes.
 - [Event Search Omnibox (2026-06)](../implimentation_plans/event-search-omnibox-2026-06.md)
 - [Telemetry Implementation Plan](../implimentation_plans/telemetry-implementation-plan.md)
 - [Top Qualifiers (2026-04)](../implimentation_plans/top-qualifiers-2026-04.md)
+- [Lap Trend Pace Heat Line (2026-06)](../implimentation_plans/lap-trend-pace-heat-line-2026-06.md)
+- [Lap Trend Pace Heat Line Checklist](../implimentation_plans/lap-trend-pace-heat-line-checklist.md)
 
 ---
 
@@ -430,6 +435,7 @@ These guides mirror the in-app `/guides/*` routes.
 - [Future Ideas Index](../future-ideas/README.md)
 - [Event Series Linking](../future-ideas/event-series-linking.md)
 - [Graph-Based Race Replay](../future-ideas/graph-based-race-replay.md)
+- [Lap Trend Pace Analysis Follow-Ons](../future-ideas/lap-trend-pace-analysis-follow-ons.md)
 - [Top Qualifiers and Seeding Rounds](../future-ideas/top-qualifiers-and-seeding-rounds.md)
 - [Feature Ideas (scratchpad)](../feature_ideas/feature_ideas.md)
 

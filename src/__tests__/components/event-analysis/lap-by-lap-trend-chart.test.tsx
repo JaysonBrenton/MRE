@@ -5,7 +5,7 @@
 /** @vitest-environment jsdom */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { act, render, screen, fireEvent, within } from "@testing-library/react"
 import LapByLapTrendChart from "@/components/organisms/event-analysis/LapByLapTrendChart"
 import type { DriverLapTrendSeries } from "@/core/events/get-lap-data"
 
@@ -26,6 +26,7 @@ const sampleDrivers: DriverLapTrendSeries[] = [
         className: "Buggy",
         lapNumber: 1,
         lapTimeSeconds: 32.123,
+        positionOnLap: 2,
       },
       {
         lapIndex: 2,
@@ -34,6 +35,7 @@ const sampleDrivers: DriverLapTrendSeries[] = [
         className: "Buggy",
         lapNumber: 2,
         lapTimeSeconds: 32.456,
+        positionOnLap: 1,
       },
     ],
   },
@@ -105,5 +107,35 @@ describe("LapByLapTrendChart", () => {
     )
 
     expect(screen.getByText("Lap number (this session)")).toBeInTheDocument()
+  })
+
+  it("renders LiveRC-style position lanes when position on lap is enabled", () => {
+    const { container } = render(
+      <LapByLapTrendChart
+        drivers={sampleDrivers}
+        chartTitle="Driver laps"
+        enablePositionAxisToggle
+        height={480}
+      />
+    )
+
+    expect(container.querySelector('[data-testid="lap-by-lap-position-lanes"]')).toBeNull()
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: /Lap chart display options/i }))
+    })
+    const positionToggle = screen.getByRole("menuitemcheckbox", { name: /Position on lap/i })
+    act(() => {
+      fireEvent.click(positionToggle)
+    })
+
+    const positionLanes = container.querySelector('[data-testid="lap-by-lap-position-lanes"]')
+    expect(positionLanes).not.toBeNull()
+    expect(positionLanes?.querySelectorAll("circle").length).toBeGreaterThan(0)
+
+    const chartDesc = container.querySelector("desc")
+    expect(chartDesc?.textContent).toMatch(/upper band/i)
+
+    expect(within(positionToggle).getByText("On")).toBeInTheDocument()
   })
 })

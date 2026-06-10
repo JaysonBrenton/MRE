@@ -1,7 +1,7 @@
 ---
 created: 2026-01-27
 creator: Jayson Brenton
-lastModified: 2026-05-31
+lastModified: 2026-06-10
 description: Guide to analyzing race event data in My Race Engineer (current UI)
 purpose:
   Documents the Event Analysis experience as embedded on My Event Analysis
@@ -10,8 +10,10 @@ purpose:
 relatedFiles:
   - src/components/organisms/dashboard/EventAnalysisSection.tsx
   - src/components/organisms/event-analysis/event-analysis-sub-tabs.ts
+  - src/components/organisms/event-analysis/LapByLapTrendChart.tsx
   - docs/frontend/liverc/user-workflow.md
   - docs/architecture/event-analysis-mains-ladder.md
+  - docs/architecture/lap-trend-pace-heat-line.md
 ---
 
 # Event Analysis guide
@@ -112,16 +114,35 @@ Shipped surfaces include:
 - **Driver Analysis** (same Event Level workspace) — event-wide lap trace for
   the **same class as the mains ladder picker** (every session in scope for that
   class via `/lap-trend`): up to four drivers overlaid; light session dividers
-  instead of shaded bands; optional position axis, smoothing, and **expanded
-  chart height** (chart **Display** menu); default driver follows multi-main /
-  final ranking / mains finish / qualifying heuristics when the ladder selection
-  changes (`pickEventLevelDriverAnalysisDefaultDriver`, rendered in
-  `OverviewTab` under `variant="event-analysis-only"`). The X-axis is each
-  driver's **chronological lap index within the current class/session scope**;
-  the same index does not always mean the same session moment when drivers ran
-  different sessions. Use **Session type** and **Session** filters to narrow
-  scope; remove drivers from the legend with **×** when comparing up to four
-  traces.
+  instead of shaded bands; optional position axis, smoothing, **expanded chart
+  height**, and **Pace heat line** (chart **Display** menu); default driver
+  follows multi-main / final ranking / mains finish / qualifying heuristics when
+  the ladder selection changes (`pickEventLevelDriverAnalysisDefaultDriver`,
+  rendered in `OverviewTab` under `variant="event-analysis-only"`). The X-axis
+  is each driver's **chronological lap index within the current class/session
+  scope**; the same index does not always mean the same session moment when
+  drivers ran different sessions. Use **Session type** and **Session** filters
+  to narrow scope; remove drivers from the legend with **×** when comparing up
+  to four traces.
+
+### Pace heat line (single driver)
+
+When **one driver** is selected on the lap-by-lap trend chart, open **Display**
+and turn on **Pace heat line**. The lap trace is colored along its length by
+pace relative to that driver's **personal best lap in the current scope**:
+
+- **Green** — at or near personal best
+- **Amber** — moderately slower
+- **Red** — much slower laps
+
+This is optional and defaults to off. With two or more drivers selected, the
+toggle is disabled (solid line colors distinguish drivers). Hover the chart for
+exact **vs driver's best** values in the tooltip. Slow-lap amber dots are hidden
+while pace heat is on. The mini chart in a **collapsed** analysis tile does not
+offer pace heat; expand the card for full Display options.
+
+Normative spec:
+[lap-trend-pace-heat-line.md](../architecture/lap-trend-pace-heat-line.md).
 
 Bump-up / Driver Progression inferred rules still anchor on mains ladder tiers
 ([architecture reference](../architecture/event-analysis-mains-ladder.md)).

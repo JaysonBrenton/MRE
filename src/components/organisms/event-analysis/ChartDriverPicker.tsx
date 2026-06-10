@@ -81,6 +81,10 @@ export default function ChartDriverPicker({
   const buttonRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number } | null>(null)
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange
+  }, [onSelectionChange])
 
   const validDriverIdSet = useMemo(() => new Set(drivers.map((d) => d.driverId)), [drivers])
 
@@ -259,7 +263,10 @@ export default function ChartDriverPicker({
   }, [closestOnly, closestAnchorId])
 
   useEffect(() => {
-    if (!showClosestOnlyToggle || singleSelect || !closestOnly) return
+    // When closest-only is controlled externally (e.g. chart Display menu), the parent owns selection sync.
+    if (!showClosestOnlyToggle || !closestOnlyToggleInPopover || singleSelect || !closestOnly) {
+      return
+    }
     if (selectedDriverIds.length === 0) {
       if (closestAnchorId !== null) {
         queueMicrotask(() => setClosestAnchorId(null))
@@ -276,17 +283,17 @@ export default function ChartDriverPicker({
     }
     const enforced = resolveClosestSelection(anchorToUse)
     if (enforced.join("|") !== selectedDriverIds.join("|")) {
-      queueMicrotask(() => onSelectionChange(enforced))
+      queueMicrotask(() => onSelectionChangeRef.current(enforced))
     }
   }, [
     showClosestOnlyToggle,
+    closestOnlyToggleInPopover,
     singleSelect,
     closestOnly,
     closestAnchorId,
     selectedDriverIds,
     validDriverIdSet,
     resolveClosestSelection,
-    onSelectionChange,
   ])
 
   const popoverContent = isOpen && typeof document !== "undefined" && (

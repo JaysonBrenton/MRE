@@ -35,6 +35,7 @@ coordinated move and link update across `docs/`.
 | [Observability platform remediation (Jun 2026)](observability-platform-remediation-2026-06.md)   | Planned     | [observability-platform.md](../architecture/observability-platform.md)                                              |
 | [Ingestion advisory lock remediation (Jun 2026)](ingestion-advisory-lock-remediation-2026-06.md) | Planned     | [32-ingestion-advisory-lock-lifecycle.md](../architecture/liverc-ingestion/32-ingestion-advisory-lock-lifecycle.md) |
 | [Recent Events Auto-Ingest (May 2026)](recent-events-auto-ingest-2026-05.md)                     | Planned     | [31-recent-events-auto-ingest.md](../architecture/liverc-ingestion/31-recent-events-auto-ingest.md)                 |
+| [Lap trend pace heat line (Jun 2026)](lap-trend-pace-heat-line-2026-06.md)                       | Planned     | [lap-trend-pace-heat-line.md](../architecture/lap-trend-pace-heat-line.md)                                          |
 
 Operations runbooks:
 [admin-ingestion-settings-runbook.md](../operations/admin-ingestion-settings-runbook.md),

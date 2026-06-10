@@ -244,6 +244,27 @@ function liveRcCompactRaceLabel(
   return core.trim()
 }
 
+const EVENT_LEVEL_LAP_CLOSEST_COUNT = 3
+
+function lapTrendDriverIdsKey(driverIds: readonly string[]): string {
+  return [...driverIds].sort().join(",")
+}
+
+/** Closest-competitor selection limited to drivers with plottable lap data in the current scope. */
+function resolveClosestDriverIdsForLapChart(
+  anchorId: string,
+  closestByAnchor: Record<string, string[]>,
+  eligibleIds: Set<string>,
+  maxDrivers: number,
+  closestCount: number
+): string[] {
+  if (!eligibleIds.has(anchorId)) return []
+  const nearest = (closestByAnchor[anchorId] ?? [])
+    .filter((id) => id !== anchorId && eligibleIds.has(id))
+    .slice(0, closestCount)
+  return [anchorId, ...nearest].slice(0, maxDrivers)
+}
+
 export interface OverviewTabProps {
   data: EventAnalysisData
   selectedDriverIds: string[]
@@ -1070,6 +1091,71 @@ export default function OverviewTab({
     return result
   }, [eventLevelLapChartDriverStats])
 
+  const eventLevelDriverPickListIds = useMemo(
+    () => new Set(eventLevelDriverPickListForLapChart.map((d) => d.driverId)),
+    [eventLevelDriverPickListForLapChart]
+  )
+
+  /**
+   * Closest competitors resolve **optimistically** from race-result pace stats (full scope),
+   * never from fetched lap data: competitors must be selected before their laps can load, so
+   * gating on fetched laps deadlocks. Drivers without plottable laps simply don't render.
+   */
+  const resolveEventLevelClosestDriverSelection = useCallback(
+    (anchorId: string): string[] =>
+      resolveClosestDriverIdsForLapChart(
+        anchorId,
+        eventLevelLapChartClosestIdsByAnchor,
+        eventLevelDriverPickListIds,
+        MAX_EVENT_LEVEL_LAP_DRIVERS,
+        EVENT_LEVEL_LAP_CLOSEST_COUNT
+      ),
+    [eventLevelLapChartClosestIdsByAnchor, eventLevelDriverPickListIds]
+  )
+
+  /**
+   * Sole enforcer of closest-only selection: selection = anchor + nearest in scope.
+   * Deterministic and idempotent (functional update bails out when unchanged), so re-runs
+   * converge instead of looping. Covers toggle-on, page load with the mode persisted,
+   * scope changes, and manual selection edits while the mode is active.
+   */
+  useEffect(() => {
+    if (!isEventAnalysisToolbarVariant || !eventLevelLapChartClosestOnly) return
+    queueMicrotask(() => {
+      setEventLevelLapChartDriverIds((prev) => {
+        const anchor = prev.find((id) => eventLevelDriverPickListIds.has(id))
+        if (!anchor) return prev
+        const next = resolveEventLevelClosestDriverSelection(anchor)
+        if (next.length === 0) return prev
+        if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
+          return prev
+        }
+        return next
+      })
+    })
+  }, [
+    isEventAnalysisToolbarVariant,
+    eventLevelLapChartClosestOnly,
+    eventLevelLapChartDriverIds,
+    eventLevelDriverPickListIds,
+    resolveEventLevelClosestDriverSelection,
+    setEventLevelLapChartDriverIds,
+  ])
+
+  const handleEventLevelLapChartDriverSelectionChange = useCallback(
+    (ids: string[]) => {
+      if (ids.length > MAX_EVENT_LEVEL_LAP_DRIVERS) {
+        setEventLevelLapDriverCapNotice(
+          `Showing ${MAX_EVENT_LEVEL_LAP_DRIVERS} of ${ids.length} selected drivers (maximum ${MAX_EVENT_LEVEL_LAP_DRIVERS}).`
+        )
+      } else {
+        setEventLevelLapDriverCapNotice(null)
+      }
+      setEventLevelLapChartDriverIds(ids.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS))
+    },
+    [setEventLevelLapChartDriverIds]
+  )
+
   useEffect(() => {
     if (eventLevelDriverLapChartClassOverride === null) return
     if (data.races.some((r) => r.className === eventLevelDriverLapChartClassOverride)) return
@@ -1644,8 +1730,11 @@ export default function OverviewTab({
     queueMicrotask(() => setSessionLapTrendChartDriverIds([]))
   }, [sessionDriverAnalysisPickedRaceId, selectedClass])
 
-  // Lap-by-lap trend: Event Analysis → Driver Analysis (event-wide) or Session Analysis → Driver Analysis (one session)
-  useEffect(() => {
+  const lapTrendFetchRequest = useMemo((): {
+    fetchKey: string | null
+    url: string | null
+    clearOnly: boolean
+  } => {
     const isSessionDriverAnalysis =
       inSessionAnalysisSection && eventAnalysisTab === "driver-analysis"
     const isEventDriverAnalysis =
@@ -1653,27 +1742,13 @@ export default function OverviewTab({
       (overviewPrimarySection === "event-analysis" || isEventAnalysisToolbarVariant)
 
     if (!isSessionDriverAnalysis && !isEventDriverAnalysis) {
-      queueMicrotask(() => {
-        setLapTrendLoading(false)
-        setLapTrendData(null)
-        setLapTrendError(null)
-      })
-      return
+      return { fetchKey: null, url: null, clearOnly: true }
     }
 
     if (isSessionDriverAnalysis) {
       if (sessionLapTrendChartDriverIds.length === 0 || !sessionDriverAnalysisPickedRaceId) {
-        queueMicrotask(() => {
-          setLapTrendData(null)
-          setLapTrendError(null)
-          setLapTrendLoading(false)
-        })
-        return
+        return { fetchKey: null, url: null, clearOnly: true }
       }
-      queueMicrotask(() => {
-        setLapTrendLoading(true)
-        setLapTrendError(null)
-      })
       const cappedIds = sessionLapTrendChartDriverIds.slice(0, MAX_LAP_TREND_DRIVERS)
       const params = new URLSearchParams({
         driverIds: cappedIds.join(","),
@@ -1686,41 +1761,17 @@ export default function OverviewTab({
             : null
           : selectedClass
       if (lapTrendClassName) params.set("className", lapTrendClassName)
-      const url = `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`
-      fetch(url, { cache: "no-store", credentials: "include" })
-        .then(async (res) => {
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            const message = err?.error?.message ?? `Failed to load lap trend (${res.status})`
-            throw new Error(message)
-          }
-          const json = await res.json()
-          if (json.success && json.data) {
-            setLapTrendData(json.data as EventLapTrendResponse)
-          } else {
-            setLapTrendData({ drivers: [] })
-          }
-        })
-        .catch((err) => {
-          setLapTrendError(err instanceof Error ? err.message : "Failed to load lap trend")
-          setLapTrendData(null)
-        })
-        .finally(() => setLapTrendLoading(false))
-      return
+      const fetchKey = `${data.event.id}|session|${params.toString()}`
+      return {
+        fetchKey,
+        url: `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`,
+        clearOnly: false,
+      }
     }
 
     if (lapTrendChartDriverIds.length === 0) {
-      queueMicrotask(() => {
-        setLapTrendData(null)
-        setLapTrendError(null)
-        setLapTrendLoading(false)
-      })
-      return
+      return { fetchKey: null, url: null, clearOnly: true }
     }
-    queueMicrotask(() => {
-      setLapTrendLoading(true)
-      setLapTrendError(null)
-    })
     const params = new URLSearchParams({
       driverIds: lapTrendChartDriverIds.join(","),
     })
@@ -1729,26 +1780,12 @@ export default function OverviewTab({
     if (effectiveClassForEventLapTrend) {
       params.set("className", effectiveClassForEventLapTrend)
     }
-    const url = `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`
-    fetch(url, { cache: "no-store", credentials: "include" })
-      .then(async (res) => {
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          const message = err?.error?.message ?? `Failed to load lap trend (${res.status})`
-          throw new Error(message)
-        }
-        const json = await res.json()
-        if (json.success && json.data) {
-          setLapTrendData(json.data as EventLapTrendResponse)
-        } else {
-          setLapTrendData({ drivers: [] })
-        }
-      })
-      .catch((err) => {
-        setLapTrendError(err instanceof Error ? err.message : "Failed to load lap trend")
-        setLapTrendData(null)
-      })
-      .finally(() => setLapTrendLoading(false))
+    const fetchKey = `${data.event.id}|event|${params.toString()}`
+    return {
+      fetchKey,
+      url: `/api/v1/events/${data.event.id}/lap-trend?${params.toString()}`,
+      clearOnly: false,
+    }
   }, [
     inSessionAnalysisSection,
     eventAnalysisTab,
@@ -1763,6 +1800,52 @@ export default function OverviewTab({
     driverLapTrendEventTaxonomyNodeFilter,
     lapTrendChartDriverIds,
   ])
+
+  // Lap-by-lap trend: Event Analysis → Driver Analysis (event-wide) or Session Analysis → Driver Analysis (one session)
+  useEffect(() => {
+    if (!lapTrendFetchRequest.fetchKey || !lapTrendFetchRequest.url) {
+      queueMicrotask(() => {
+        if (lapTrendFetchRequest.clearOnly) {
+          setLapTrendData(null)
+          setLapTrendError(null)
+        }
+        setLapTrendLoading(false)
+      })
+      return
+    }
+
+    const ac = new AbortController()
+    queueMicrotask(() => {
+      setLapTrendLoading(true)
+      setLapTrendError(null)
+    })
+    fetch(lapTrendFetchRequest.url, {
+      cache: "no-store",
+      credentials: "include",
+      signal: ac.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          const message = err?.error?.message ?? `Failed to load lap trend (${res.status})`
+          throw new Error(message)
+        }
+        const json = await res.json()
+        if (json.success && json.data) {
+          setLapTrendData(json.data as EventLapTrendResponse)
+        } else {
+          setLapTrendData({ drivers: [] })
+        }
+      })
+      .catch((err: unknown) => {
+        const e = err as { name?: string }
+        if (e?.name === "AbortError") return
+        setLapTrendError(err instanceof Error ? err.message : "Failed to load lap trend")
+        setLapTrendData(null)
+      })
+      .finally(() => setLapTrendLoading(false))
+    return () => ac.abort()
+  }, [lapTrendFetchRequest.fetchKey, lapTrendFetchRequest.url, lapTrendFetchRequest.clearOnly])
 
   // Event Level Analysis (toolbar): lap trace card — class scope + fetch
   useEffect(() => {
@@ -1813,11 +1896,26 @@ export default function OverviewTab({
     eventLevelLapChartDriverIds.length,
   ])
 
+  const eventLevelLapTrendFetchKey = useMemo(() => {
+    if (!isEventAnalysisToolbarVariant) return null
+    const cn = eventLevelDriverLapChartClass?.trim()
+    const ids = eventLevelLapChartDriverIds.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+    if (!cn || ids.length === 0) return null
+    const scope = eventLevelLapChartRaceId ?? `class:${cn}`
+    return `${data.event.id}|${scope}|${lapTrendDriverIdsKey(ids)}`
+  }, [
+    isEventAnalysisToolbarVariant,
+    eventLevelDriverLapChartClass,
+    eventLevelLapChartDriverIds,
+    eventLevelLapChartRaceId,
+    data.event.id,
+  ])
+
   useEffect(() => {
     if (!isEventAnalysisToolbarVariant) return
     const cn = eventLevelDriverLapChartClass?.trim()
     const ids = eventLevelLapChartDriverIds.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
-    if (!cn || ids.length === 0) {
+    if (!cn || ids.length === 0 || !eventLevelLapTrendFetchKey) {
       queueMicrotask(() => {
         setEventLevelLapTrendLoading(false)
         setEventLevelLapTrendData(null)
@@ -1867,29 +1965,35 @@ export default function OverviewTab({
       })
       .finally(() => setEventLevelLapTrendLoading(false))
     return () => ac.abort()
-  }, [
-    eventLevelLapChartDriverIds,
-    eventLevelLapChartRaceId,
-    eventLevelDriverLapChartClass,
-    data.event.id,
-    isEventAnalysisToolbarVariant,
-  ])
+  }, [eventLevelLapTrendFetchKey, isEventAnalysisToolbarVariant])
 
   // When loaded lap data has no plottable laps for current selection, pick a driver who does.
   useEffect(() => {
     if (!isEventAnalysisToolbarVariant || eventLevelLapTrendLoading) return
+    // Closest-only selection is derived optimistically from pace stats; never reconcile it
+    // against fetched laps (doing so either loops or deadlocks the feature).
+    if (eventLevelLapChartClosestOnly) return
     if (!eventLevelLapTrendData?.drivers?.length) return
     const cn = eventLevelDriverLapChartClass?.trim()
     if (!cn) return
 
+    const selectedIds = eventLevelLapChartDriverIds.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
+    const responseDriverIds = new Set(eventLevelLapTrendData.drivers.map((d) => d.driverId))
+    const selectionMatchesResponse =
+      selectedIds.length > 0 &&
+      selectedIds.length === responseDriverIds.size &&
+      selectedIds.every((id) => responseDriverIds.has(id))
+    if (!selectionMatchesResponse) return
+
     const scopedDrivers = eventLevelScopedLapTrendData?.drivers ?? eventLevelLapTrendData.drivers
     const withLaps = scopedDrivers.filter(driverHasPlottableLaps)
     if (withLaps.length === 0) return
+    const lapEligibleIds = new Set(withLaps.map((d) => d.driverId))
 
     queueMicrotask(() => {
       setEventLevelLapChartDriverIds((prev) => {
         const kept = prev
-          .filter((id) => withLaps.some((d) => d.driverId === id))
+          .filter((id) => lapEligibleIds.has(id))
           .slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
         if (kept.length > 0) {
           if (kept.length === prev.length && kept.every((id, index) => id === prev[index])) {
@@ -1899,13 +2003,12 @@ export default function OverviewTab({
         }
         if (prev.length > 0) return prev
 
-        const lapEligible = new Set(withLaps.map((d) => d.driverId))
         const picked = pickEventLevelDriverAnalysisDefaultDriver({
           data,
           className: cn,
-          lapEligibleDriverIds: lapEligible,
+          lapEligibleDriverIds: lapEligibleIds,
         })
-        const next = picked && lapEligible.has(picked) ? [picked] : [withLaps[0].driverId]
+        const next = picked && lapEligibleIds.has(picked) ? [picked] : [withLaps[0].driverId]
         if (prev.length === 1 && prev[0] === next[0]) return prev
         return next
       })
@@ -1917,6 +2020,8 @@ export default function OverviewTab({
     eventLevelLapTrendLoading,
     eventLevelScopedLapTrendData,
     isEventAnalysisToolbarVariant,
+    eventLevelLapChartClosestOnly,
+    eventLevelLapChartDriverIds,
   ])
 
   /** When Session/Type scope narrows races, drop laps from sessions outside scope (API returns all class races). */
@@ -3410,19 +3515,11 @@ export default function OverviewTab({
                                           closestOnlyToggleInPopover={false}
                                           closestOnly={eventLevelLapChartClosestOnly}
                                           onClosestOnlyChange={setEventLevelLapChartClosestOnly}
+                                          closestCount={EVENT_LEVEL_LAP_CLOSEST_COUNT}
                                           label="Select Drivers"
-                                          onSelectionChange={(ids) => {
-                                            if (ids.length > MAX_EVENT_LEVEL_LAP_DRIVERS) {
-                                              setEventLevelLapDriverCapNotice(
-                                                `Showing ${MAX_EVENT_LEVEL_LAP_DRIVERS} of ${ids.length} selected drivers (maximum ${MAX_EVENT_LEVEL_LAP_DRIVERS}).`
-                                              )
-                                            } else {
-                                              setEventLevelLapDriverCapNotice(null)
-                                            }
-                                            setEventLevelLapChartDriverIds(
-                                              ids.slice(0, MAX_EVENT_LEVEL_LAP_DRIVERS)
-                                            )
-                                          }}
+                                          onSelectionChange={
+                                            handleEventLevelLapChartDriverSelectionChange
+                                          }
                                         />
                                       ) : null}
                                     </div>
